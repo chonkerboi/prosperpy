@@ -2,7 +2,7 @@ import unittest
 import unittest.mock
 import decimal
 
-import autotrade
+import prosperpy
 
 decimal.getcontext().prec = 16
 
@@ -26,7 +26,7 @@ def get_candles():
     candles = []
     for index, item in enumerate(data):
         low, high, close = map(decimal.Decimal, item)
-        candle = autotrade.Candle(low=low, high=high, open=decimal.Decimal('0.00'), close=close)
+        candle = prosperpy.Candle(low=low, high=high, open=decimal.Decimal('0.00'), close=close)
 
         try:
             candle.previous = candles[index-1]
@@ -41,7 +41,7 @@ def get_candles():
 class TestAverageDirectionalMovement(unittest.TestCase):
     def test_raise_not_implemented_error(self):
         with self.assertRaises(NotImplementedError):
-            autotrade.wilder.AverageDirectionalMovement(get_candles())
+            prosperpy.wilder.AverageDirectionalMovement(get_candles())
 
 
 class TestMinusDirectionalMovement(unittest.TestCase):
@@ -56,7 +56,7 @@ class TestMinusDirectionalMovement(unittest.TestCase):
                 '2.697575418137514', '2.504891459699120']
         data = map(decimal.Decimal, data)
 
-        minus_dm = autotrade.wilder.MinusDirectionalMovement(candles[0:period])
+        minus_dm = prosperpy.wilder.MinusDirectionalMovement(candles[0:period])
         self.assertEqual(minus_dm.period, period - 1)  # The first candle is ignored
         self.assertEqual(minus_dm.value, decimal.Decimal('4.32'))
 
@@ -75,8 +75,8 @@ class TestMinusDirectionalMovement(unittest.TestCase):
                 '19.67728736016378', '18.89078124365508']
         data = map(decimal.Decimal, data)
 
-        true_range = autotrade.wilder.TrueRange(candles[0:period])
-        minus_dm = autotrade.wilder.MinusDirectionalMovement(candles[0:period], true_range=true_range)
+        true_range = prosperpy.wilder.TrueRange(candles[0:period])
+        minus_dm = prosperpy.wilder.MinusDirectionalMovement(candles[0:period], true_range=true_range)
         self.assertEqual(minus_dm.indicator, decimal.Decimal('32.33532934131737'))
 
         for candle, value in zip(candles[period:], data):
@@ -97,7 +97,7 @@ class TestPlusDirectionalMovement(unittest.TestCase):
                 '3.349993705795135', '3.970708441095482', '3.737086409588662']
         data = map(decimal.Decimal, data)
 
-        plus_dm = autotrade.wilder.PlusDirectionalMovement(candles[0:period])
+        plus_dm = prosperpy.wilder.PlusDirectionalMovement(candles[0:period])
         self.assertEqual(plus_dm.period, period - 1)  # The first candle is ignored
         self.assertEqual(plus_dm.value, decimal.Decimal('0.89'))
 
@@ -116,8 +116,8 @@ class TestPlusDirectionalMovement(unittest.TestCase):
                 '28.96407288320004', '28.18344945798794']
         data = map(decimal.Decimal, data)
 
-        true_range = autotrade.wilder.TrueRange(candles[0:period])
-        plus_dm = autotrade.wilder.PlusDirectionalMovement(candles[0:period], true_range=true_range)
+        true_range = prosperpy.wilder.TrueRange(candles[0:period])
+        plus_dm = prosperpy.wilder.PlusDirectionalMovement(candles[0:period], true_range=true_range)
         self.assertEqual(plus_dm.indicator, decimal.Decimal('6.661676646706587'))
 
         for candle, value in zip(candles[period:], data):
@@ -138,7 +138,7 @@ class TestTrueRange(unittest.TestCase):
                 '13.70908178938675', '13.25986166157341']
         data = map(decimal.Decimal, data)
 
-        true_range = autotrade.wilder.TrueRange(candles[0:period])
+        true_range = prosperpy.wilder.TrueRange(candles[0:period])
         self.assertEqual(true_range.period, period - 1)  # The first candle is ignored
         self.assertEqual(true_range.value, decimal.Decimal('13.36'))
 
@@ -148,13 +148,13 @@ class TestTrueRange(unittest.TestCase):
 
 
 class TestDirectionalIndex(unittest.TestCase):
-    @unittest.mock.patch('autotrade.wilder.MinusDirectionalMovement.add')
-    @unittest.mock.patch('autotrade.wilder.PlusDirectionalMovement.add')
-    @unittest.mock.patch('autotrade.wilder.TrueRange.add')
+    @unittest.mock.patch('prosperpy.wilder.MinusDirectionalMovement.add')
+    @unittest.mock.patch('prosperpy.wilder.PlusDirectionalMovement.add')
+    @unittest.mock.patch('prosperpy.wilder.TrueRange.add')
     def test_add(self, mock_true_range_add, mock_plus_directional_movement, mock_minus_directional_movement):
         period = 15
         candles = get_candles()
-        index = autotrade.wilder.DirectionalIndex(candles[0:period])
+        index = prosperpy.wilder.DirectionalIndex(candles[0:period])
         index.add(candles[period])
         self.assertTrue(mock_true_range_add.called)
         self.assertTrue(mock_plus_directional_movement.called)
@@ -171,7 +171,7 @@ class TestDirectionalIndex(unittest.TestCase):
                 '11.25892688414837', '3.726755492604078', '7.112824251887108', '19.09236394001392', '19.74045688230126']
         data = map(decimal.Decimal, data)
 
-        index = autotrade.wilder.DirectionalIndex(candles[0:period])
+        index = prosperpy.wilder.DirectionalIndex(candles[0:period])
         self.assertEqual(index.value, decimal.Decimal('65.83493282149711'))
 
         for candle, value in zip(candles[period:], data):
@@ -188,7 +188,7 @@ class TestAverageDirectionalIndex(unittest.TestCase):
                 '18.52538761181882', '17.71020451468084', '17.80893018791891', '17.94689638037479']
         data = map(decimal.Decimal, data)
 
-        adx = autotrade.wilder.AverageDirectionalIndex(candles[0:period])
+        adx = prosperpy.wilder.AverageDirectionalIndex(candles[0:period])
         self.assertEqual(adx.value, decimal.Decimal('31.23657739403547'))
 
         for candle, value in zip(candles[period:], data):

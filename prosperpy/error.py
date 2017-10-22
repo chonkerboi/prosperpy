@@ -2,7 +2,7 @@ import functools
 import logging
 import traceback
 
-import autotrade
+import prosperpy
 
 LOGGER = logging.getLogger(__name__)
 
@@ -15,6 +15,6 @@ def fatal(func):
         except Exception as ex:
             LOGGER.fatal("Error '%s' occurred when running '%s(%s, %s)'", ex, func, args, kwargs)
             LOGGER.fatal(traceback.format_exc())
-            LOGGER.info('Stopping %s', autotrade.engine)
-            autotrade.engine.stop()
+            LOGGER.info('Stopping %s', prosperpy.engine)
+            prosperpy.engine.stop()
     return wrapper

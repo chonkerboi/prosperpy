@@ -5,7 +5,7 @@ import decimal
 import time
 import urllib.parse
 
-import autotrade
+import prosperpy
 
 BASE_URL = 'https://api.gdax.com'
 MAX_REQUESTS_PER_SECOND = 3
@@ -58,7 +58,7 @@ def get_candles(period, granularity, product, dump=None):
 
     candles = []
     for index, item in enumerate(data):
-        candle = autotrade.Candle(*list(map(decimal.Decimal, item[1:5])))
+        candle = prosperpy.Candle(*list(map(decimal.Decimal, item[1:5])))
 
         try:
             candle.previous = candles[index - 1]

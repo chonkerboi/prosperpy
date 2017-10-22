@@ -5,7 +5,7 @@ import asyncio
 import logging
 import itertools
 
-import autotrade.gdax.websocket
+import prosperpy.gdax.websocket
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class GDAXFeed:
     def __init__(self, product, granularity, candles):
         self.product = product
         self.granularity = granularity
-        self.connection = autotrade.gdax.WebsocketConnection(self.product, self.granularity)
+        self.connection = prosperpy.gdax.WebsocketConnection(self.product, self.granularity)
         self.price = decimal.Decimal('0')
         self.candles = collections.deque(iterable=candles, maxlen=len(candles) * 10)
         self.traders = []
@@ -73,9 +73,9 @@ class GDAXFeed:
 
     def new_candle(self):
         """Append a new candle to the tracked candles."""
-        self.candles.append(autotrade.Candle(previous=self.candle))
+        self.candles.append(prosperpy.Candle(previous=self.candle))
 
-    @autotrade.error.fatal
+    @prosperpy.error.fatal
     async def trade(self):
         while True:
             if self.is_trade_ready():
@@ -88,10 +88,10 @@ class GDAXFeed:
 
             await asyncio.sleep(self.granularity)
 
-    @autotrade.error.fatal
+    @prosperpy.error.fatal
     async def run(self):
         self.new_candle()
-        autotrade.engine.call_later(self.granularity, autotrade.engine.create_task, self.trade())
+        prosperpy.engine.call_later(self.granularity, prosperpy.engine.create_task, self.trade())
 
         async with self:
             while True:

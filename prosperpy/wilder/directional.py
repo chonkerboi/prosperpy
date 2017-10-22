@@ -84,7 +84,7 @@ class DirectionalIndex:
 
         It is important to add the the true range before the directional movements because the DM uses TR internally.
         Args:
-            candle (autotrade.Candle): the candle to add.
+            candle (prosperpy.Candle): the candle to add.
         """
         self.true_range.add(candle)
         self.minus.add(candle)

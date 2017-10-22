@@ -1,7 +1,7 @@
 import unittest
 import decimal
 
-import autotrade
+import prosperpy
 
 decimal.getcontext().prec = 16
 
@@ -21,7 +21,7 @@ def get_candles():
     candles = []
     for index, item in enumerate(data):
         low, high, close = map(decimal.Decimal, item)
-        candle = autotrade.Candle(low=low, high=high, open=decimal.Decimal('0.00'), close=close)
+        candle = prosperpy.Candle(low=low, high=high, open=decimal.Decimal('0.00'), close=close)
 
         try:
             candle.previous = candles[index-1]
@@ -42,7 +42,7 @@ class TestTrueRange(unittest.TestCase):
         data = map(decimal.Decimal, data)
 
         for candle, value in zip(candles, data):
-            self.assertEqual(autotrade.wilder.true_range(candle), value)
+            self.assertEqual(prosperpy.wilder.true_range(candle), value)
 
 
 class TestAverageTrueRange(unittest.TestCase):
@@ -55,7 +55,7 @@ class TestAverageTrueRange(unittest.TestCase):
                 '1.380106790012126', '1.366527733582689', '1.336061466898211', '1.316342790691196']
         data = map(decimal.Decimal, data)
 
-        atr = autotrade.wilder.AverageTrueRange(candles[0:period])
+        atr = prosperpy.wilder.AverageTrueRange(candles[0:period])
         self.assertEqual(atr.period, period)
         self.assertEqual(atr.value, decimal.Decimal('0.5542857142857143'))
 

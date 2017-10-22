@@ -1,6 +1,6 @@
 import decimal
 
-import autotrade
+import prosperpy
 
 
 def get_candles():
@@ -10,7 +10,7 @@ def get_candles():
     candles = []
 
     for index, item in enumerate(data):
-        candle = autotrade.Candle(
+        candle = prosperpy.Candle(
             decimal.Decimal(item[1]), decimal.Decimal(item[2]), decimal.Decimal(item[3]), decimal.Decimal(item[4]))
 
         try:
@@ -31,7 +31,7 @@ def main():
 
 def compute(period):
     candles = get_candles()
-    adx = autotrade.wilder.AverageDirectionalIndex(candles[0:period])
+    adx = prosperpy.wilder.AverageDirectionalIndex(candles[0:period])
     plus_mode = True
     usd = decimal.Decimal('1000')
     ini = usd

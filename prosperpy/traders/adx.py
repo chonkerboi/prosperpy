@@ -1,4 +1,4 @@
-import autotrade
+import prosperpy
 
 from .trader import Trader
 
@@ -6,7 +6,7 @@ from .trader import Trader
 class ADXTrader(Trader):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.adx = autotrade.wilder.AverageDirectionalIndex(list(self.feed.candles))
+        self.adx = prosperpy.wilder.AverageDirectionalIndex(list(self.feed.candles))
         self.above = True
 
     def trade(self, candle):

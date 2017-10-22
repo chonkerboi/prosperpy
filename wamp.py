@@ -3,7 +3,7 @@ import logging
 import argparse
 import decimal
 
-import autotrade
+import prosperpy
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def get_candles(granularity, reverse=False):
             data = reversed(data)
 
         for index, item in enumerate(data):
-            candle = autotrade.Candle(*list(map(decimal.Decimal, item[1:5])))
+            candle = prosperpy.Candle(*list(map(decimal.Decimal, item[1:5])))
 
             try:
                 candle.previous = candles[index - 1]
@@ -48,7 +48,7 @@ def init_logging(options):
 
     if options.verbosity:
         level = logging.DEBUG
-        autotrade.engine.set_debug(True)
+        prosperpy.engine.set_debug(True)
     elif options.quiet:
         level = logging.ERROR
     else:
@@ -60,7 +60,7 @@ def init_logging(options):
 
 class Agent:
     def __init__(self, product, granularity, period, candles):
-        self.feed = autotrade.gdax.GDAXFeed(product, granularity, candles[0:period])
+        self.feed = prosperpy.gdax.GDAXFeed(product, granularity, candles[0:period])
         self.candles = candles[period:]
 
     def run(self):
@@ -87,21 +87,21 @@ def main():
     product = 'BTC-USD'
 
     #factor = 365 * (3600 * 24) / (options.granularity * options.period)
-    #candles = autotrade.gdax.rest.get_candles(options.period * factor, options.granularity, product)
+    #candles = prosperpy.gdax.rest.get_candles(options.period * factor, options.granularity, product)
     candles = get_candles(options.granularity, reverse=options.reverse)
 
     #[print(candle) for candle in candles]
     #return
 
     agent = Agent(product, options.granularity, options.period, candles)
-    agent.feed.register_trader(autotrade.traders.ADXTrader(product, agent.feed))
-    agent.feed.register_trader(autotrade.traders.SMATrader(product, agent.feed))
-    agent.feed.register_trader(autotrade.traders.HODLTrader(product, agent.feed))
-    agent.feed.register_trader(autotrade.traders.PercentageTrader(decimal.Decimal('0.8'), product, agent.feed))
-    #agent.register_trader(autotrade.traders.PercentageTrader(decimal.Decimal('0.6'), agent))
-    #agent.register_trader(autotrade.traders.PercentageTrader(decimal.Decimal('0.4'), agent))
-    #agent.register_trader(autotrade.traders.PercentageTrader(decimal.Decimal('0.2'), agent))
-    #agent.register_trader(autotrade.traders.PercentageTrader(decimal.Decimal('0.05'), agent))
+    agent.feed.register_trader(prosperpy.traders.ADXTrader(product, agent.feed))
+    agent.feed.register_trader(prosperpy.traders.SMATrader(product, agent.feed))
+    agent.feed.register_trader(prosperpy.traders.HODLTrader(product, agent.feed))
+    agent.feed.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.8'), product, agent.feed))
+    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.6'), agent))
+    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.4'), agent))
+    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.2'), agent))
+    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.05'), agent))
 
     agent.run()
 
@@ -111,13 +111,13 @@ def main():
 
     return
 
-    agents = [autotrade.gdax.Agent(product, options.granularity, candles)]
+    agents = [prosperpy.gdax.Agent(product, options.granularity, candles)]
 
     for agent in agents:
-        autotrade.engine.create_task(agent())
+        prosperpy.engine.create_task(agent())
 
-    autotrade.engine.run_forever()
-    autotrade.engine.close()
+    prosperpy.engine.run_forever()
+    prosperpy.engine.close()
 
 
 if __name__ == '__main__':

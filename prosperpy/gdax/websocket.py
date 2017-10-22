@@ -5,7 +5,7 @@ import sys
 
 import websockets.client
 
-import autotrade
+import prosperpy
 
 URL = 'wss://ws-feed.gdax.com'
 LOGGER = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class WebsocketConnection:
         data = dict(type='subscribe', channels=[dict(name='ticker', product_ids=[self.product])])
         LOGGER.info('Creating connection to %s %s', self.url, data)
         await self.close()  # Close the previous connection.
-        self.connection = websockets.connect(self.url, loop=autotrade.engine)
+        self.connection = websockets.connect(self.url, loop=prosperpy.engine)
 
         try:
             await self.connection.__aenter__()
@@ -54,7 +54,7 @@ class WebsocketConnection:
     async def send(self, *args, **kwargs):
         while True:
             try:
-                return await asyncio.wait_for(self.websocket.send(*args, **kwargs), self.timeout, loop=autotrade.engine)
+                return await asyncio.wait_for(self.websocket.send(*args, **kwargs), self.timeout, loop=prosperpy.engine)
             except asyncio.TimeoutError:
                 LOGGER.error('%s.send() timeout', self.__class__.__name__)
             except websockets.exceptions.ConnectionClosed as ex:
@@ -67,7 +67,7 @@ class WebsocketConnection:
     async def recv(self):
         while True:
             try:
-                return await asyncio.wait_for(self.websocket.recv(), self.timeout, loop=autotrade.engine)
+                return await asyncio.wait_for(self.websocket.recv(), self.timeout, loop=prosperpy.engine)
             except asyncio.TimeoutError:
                 LOGGER.error('%s.recv() timeout', self.__class__.__name__)
             except websockets.exceptions.ConnectionClosed as ex:

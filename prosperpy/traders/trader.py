@@ -1,7 +1,7 @@
 import decimal
 import logging
 
-import autotrade
+import prosperpy
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class Trader:
         self.investment += self.recurring
 
         if self.liquidity:
-            position = autotrade.Position(self.product, self.liquidity / self.feed.price, self.feed.price)
+            position = prosperpy.Position(self.product, self.liquidity / self.feed.price, self.feed.price)
             LOGGER.info('%s Buy (Price: %s) %s', self, self.feed.price, position.amount)
             self.liquidity = decimal.Decimal('0')
             self.buys += 1
