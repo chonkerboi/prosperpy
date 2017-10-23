@@ -11,11 +11,12 @@ URL = 'wss://ws-feed.gdax.com'
 LOGGER = logging.getLogger(__name__)
 
 
-class WebsocketConnection:
+class GDAXWebsocketConnection:
     def __init__(self, product, timeout, url=URL):
         self.url = url
         self.product = product
         self.timeout = timeout
+        self.on_connection = []
         self.connection = None
 
     @property
@@ -37,7 +38,10 @@ class WebsocketConnection:
             LOGGER.error(ex)
         finally:
             await self.send(json.dumps(data))
-            return self
+
+        for callback in self.on_connection:
+            callback()  # Notify callback of new connection made.
+        return self
 
     async def __aexit__(self, *args):
         try:

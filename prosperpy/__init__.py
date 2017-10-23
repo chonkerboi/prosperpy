@@ -10,4 +10,4 @@ from .position import Position
 
 engine = asyncio.get_event_loop()
 
-__all__ = ['__version__', 'traders', 'error', 'engine', 'Candle', 'wilder', 'gdax']
+__all__ = ['__version__', 'traders', 'error', 'engine', 'Candle', 'wilder', 'gdax', 'Position']

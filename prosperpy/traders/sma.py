@@ -2,9 +2,7 @@ from .adx import ADXTrader
 
 
 class SMATrader(ADXTrader):
-    def trade(self, candle):
-        self.adx.add(candle)
-
+    def trade(self):
         if self.adx.value > 20:
             return
 

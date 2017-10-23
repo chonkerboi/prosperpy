@@ -10,6 +10,11 @@ class Candle(object):
         self.close = close
         self.previous = previous
 
+    def __str__(self):
+        return '{}<{:.2f}, {:.2f}, {:.2f}, {:.2f}>'.format(
+            self.__class__.__name__, self.low, self.high, self.open, self.close)
+
     def __repr__(self):  # pragma: no cover
-        # Cannot repr self.previous because of recursion depth limit
-        return '{}({}, {}, {}, {})'.format(self.__class__.__name__, self.low, self.high, self.open, self.close)
+        # Cannot repr self.previous because of infinite recursion.
+        return '{}(low={}, high={}, open={}, close={})'.format(
+            self.__class__.__name__, self.low, self.high, self.open, self.close)

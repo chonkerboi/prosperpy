@@ -5,4 +5,5 @@ class Position:
         self.amount = amount
 
     def __str__(self):
-        return '{}<{} amount: {}, price: {}>'.format(self.__class__.__name__, self.product, self.amount, self.price)
+        return '{}<{}, amount: {:.2f}, price: {:.2f}>'.format(
+            self.__class__.__name__, self.product, self.amount, self.price)

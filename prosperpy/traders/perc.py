@@ -20,16 +20,18 @@ class PercentageTrader(ADXTrader):
             profit -= profit * decimal.Decimal('0.025')
 
             if position.amount > 0 and profit > position.price * position.amount:
-                if position.amount < decimal.Decimal('0.0000001'):
-                    LOGGER.info('%s Liquidating (Price: %s) %s', self, self.feed.price, position.amount)
+                if position.amount < decimal.Decimal('0.01'):
+                    LOGGER.info('{} Liquidating (Price: {:.2f}) {:.8f}'.format(self, self.feed.price, position.amount))
                     self.liquidity += profit
                     self.sells += 1
                     position.amount = decimal.Decimal('0')
                 else:
                     profit = profit * self.percentage
-                    LOGGER.info('%s Sell (Price: %s) %s', self, self.feed.price, position.amount)
+                    LOGGER.info('{} Sell (Price: {:.2f}) {:.8f}'.format(self, self.feed.price, position.amount))
                     self.liquidity += profit
                     position.amount *= decimal.Decimal('1') - self.percentage
+                    #position.price = self.feed.price
                     self.sells += 1
+                self.summary()
 
         self.clean_positions()

@@ -6,12 +6,17 @@ from .trader import Trader
 class ADXTrader(Trader):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.adx = None
+        self.above = None
+
+    def initialize(self):
         self.adx = prosperpy.wilder.AverageDirectionalIndex(list(self.feed.candles))
         self.above = True
 
-    def trade(self, candle):
+    def add(self, candle):
         self.adx.add(candle)
 
+    def trade(self):
         if self.adx.value > 20:
             return
 

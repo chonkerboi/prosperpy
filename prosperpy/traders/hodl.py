@@ -1,12 +1,21 @@
-from .trader import Trader
+import logging
+
+from .adx import ADXTrader
+
+LOGGER = logging.getLogger(__name__)
 
 
-class HODLTrader(Trader):
+class HODLTrader(ADXTrader):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.should_buy = True
+        self.initial_buy = True
 
-    def trade(self, candle):
-        if self.should_buy:
+    def trade(self):
+        if self.initial_buy:
             self.buy()
-            self.should_buy = False
+            self.initial_buy = False
+
+        super().trade()
+
+    def sell(self):
+        LOGGER.info('Not selling because HODL 4 life')

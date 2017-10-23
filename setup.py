@@ -16,5 +16,5 @@ setuptools.setup(
     install_require=install_require,
     test_suite='nose.collector',
     tests_require=tests_require,
-    extras_require={'test': tests_require, 'all': install_require + tests_require}
+    extras_require={'test': tests_require, 'all': install_require+tests_require}
 )

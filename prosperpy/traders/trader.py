@@ -7,15 +7,19 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Trader:
-    def __init__(self, product, feed, investment=decimal.Decimal('100'), recurring=decimal.Decimal('10')):
+    def __init__(self, product, feed, api, investment=decimal.Decimal('100'), recurring=decimal.Decimal('10')):
         self.product = product
         self.feed = feed
+        self.api = api
         self.investment = investment
         self.recurring = recurring
         self.liquidity = self.investment
         self.buys = 0
         self.sells = 0
         self.positions = []
+
+    def initialize(self):
+        raise NotImplementedError()
 
     def clean_positions(self):
         self.positions = [position for position in self.positions if position.amount > 0]
@@ -33,10 +37,11 @@ class Trader:
 
         if self.liquidity:
             position = prosperpy.Position(self.product, self.liquidity / self.feed.price, self.feed.price)
-            LOGGER.info('%s Buy (Price: %s) %s', self, self.feed.price, position.amount)
+            LOGGER.info('{} Buy (Price: {:.2f}) {:.8f}'.format(self, self.feed.price, position.amount))
             self.liquidity = decimal.Decimal('0')
             self.buys += 1
             self.positions.append(position)
+            self.summary()
 
     def sell(self):
         for position in self.positions:
@@ -44,15 +49,19 @@ class Trader:
             profit -= profit * decimal.Decimal('0.025')
 
             if position.amount > 0 and profit > position.price * position.amount:
-                LOGGER.info('%s Sell (Price: %s) %s', self, self.feed.price, position.amount)
+                LOGGER.info('{} Sell (Price: {:.2f}) {:.8f}'.format(self, self.feed.price, position.amount))
                 self.liquidity += profit
                 self.sells += 1
                 position.amount = decimal.Decimal('0')
+                self.summary()
 
         self.clean_positions()
 
     def summary(self):
-        LOGGER.info('%s %s%% (%s,%s)', self, self.return_on_investment(), self.buys, self.sells)
+        LOGGER.info('{} {:.2f}% ({},{})'.format(self, self.return_on_investment(), self.buys, self.sells))
 
-    def trade(self, candle):
+    def add(self, candle):
+        raise NotImplementedError()
+
+    def trade(self):
         raise NotImplementedError()

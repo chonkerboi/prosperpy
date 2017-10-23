@@ -59,23 +59,22 @@ def init_logging(options):
 
 
 class Agent:
-    def __init__(self, product, granularity, period, candles):
-        self.feed = prosperpy.gdax.GDAXFeed(product, granularity, candles[0:period])
-        self.candles = candles[period:]
+    def __init__(self, feeds, traders, candles):
+        self.feeds = feeds
+        self.traders = traders
+        self.candles = candles
 
-    def run(self):
+    def __call__(self):
         for candle in self.candles:
-            self.feed.price = decimal.Decimal(sum([candle.low, candle.high, candle.open, candle.close])/4)
-            self.feed.candles.append(candle)
+            for feed in self.feeds:
+                feed.price = decimal.Decimal(sum([candle.low, candle.high, candle.open, candle.close])/4)
+                feed.candles.append(candle)
 
-            for trader in self.feed.traders:
+            for trader in self.traders:
                 trader.trade(candle)
 
 
 def main():
-    'EI4+LBJLYCfPWFd1X7c4RtZqPnVm4wDPpFgwNvFF/VY7yJxSmIY4/u2b6zloxTTskQx37ljJ3TcBf2DvfUGlTg=='
-    'v2ZKzU74X3yM'
-    'e3690555d24ed594054de83c598ddabd'
     parser = argparse.ArgumentParser()
     parser.add_argument('--granularity', type=int, dest='granularity', required=True)
     parser.add_argument('--period', type=int, dest='period', required=True)
@@ -85,39 +84,37 @@ def main():
     options = parser.parse_args()
     init_logging(options)
     product = 'BTC-USD'
+    auth = prosperpy.gdax.api.GDAXAuth(
+        'e607d4feebe87f28beacff087243b011',
+        'XRIqlNO9bE49AO15Xb800mqa1qTDqUcHS8NjfYXbK6DO5sdWDHk46bKXEBrc5IFrvYZOqkUwJscA2NLEi471kA==',
+        '92Ka6n64Tzya')
+    api = prosperpy.gdax.api.GDAXAPI(auth)
 
     #factor = 365 * (3600 * 24) / (options.granularity * options.period)
-    #candles = prosperpy.gdax.rest.get_candles(options.period * factor, options.granularity, product)
-    candles = get_candles(options.granularity, reverse=options.reverse)
-
+    #factor = 10
+    #candles = prosperpy.gdax.api.get_candles(options.period * factor, options.granularity, product)
+    #candles = get_candles(options.granularity, reverse=options.reverse)
     #[print(candle) for candle in candles]
     #return
 
-    agent = Agent(product, options.granularity, options.period, candles)
-    agent.feed.register_trader(prosperpy.traders.ADXTrader(product, agent.feed))
-    agent.feed.register_trader(prosperpy.traders.SMATrader(product, agent.feed))
-    agent.feed.register_trader(prosperpy.traders.HODLTrader(product, agent.feed))
-    agent.feed.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.8'), product, agent.feed))
-    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.6'), agent))
-    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.4'), agent))
-    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.2'), agent))
-    #agent.register_trader(prosperpy.traders.PercentageTrader(decimal.Decimal('0.05'), agent))
+    #feed = prosperpy.gdax.GDAXFeed(product, options.granularity, candles[0:options.period])
+    feed = prosperpy.gdax.GDAXFeed(product, options.period, options.granularity)
+    feed.traders.append(prosperpy.traders.ADXTrader(product, feed, api))
+    feed.traders.append(prosperpy.traders.SMATrader(product, feed, api))
+    feed.traders.append(prosperpy.traders.HODLTrader(product, feed, api))
+    feed.traders.append(prosperpy.traders.PercentageTrader(decimal.Decimal('0.8'), product, feed, api))
 
-    agent.run()
-
-    LOGGER.info('----------------------------------------')
-    for trader in agent.feed.traders:
-        trader.summary()
-
-    return
-
-    agents = [prosperpy.gdax.Agent(product, options.granularity, candles)]
-
-    for agent in agents:
-        prosperpy.engine.create_task(agent())
-
+    prosperpy.engine.create_task(feed())
     prosperpy.engine.run_forever()
     prosperpy.engine.close()
+    return
+
+    agent = Agent([feed], traders, candles[options.period:])
+    agent()
+
+    LOGGER.info('--------------------------------------------------------------------------------')
+    for trader in traders:
+        trader.summary()
 
 
 if __name__ == '__main__':

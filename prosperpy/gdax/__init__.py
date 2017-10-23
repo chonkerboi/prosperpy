@@ -1,5 +1,5 @@
 from .feed import GDAXFeed
-from .websocket import WebsocketConnection
-from . import rest
+from .websocket import GDAXWebsocketConnection
+from . import api
 
-__all__ = ['rest', 'GDAXFeed', 'WebsocketConnection']
+__all__ = ['api', 'GDAXFeed', 'GDAXWebsocketConnection']
