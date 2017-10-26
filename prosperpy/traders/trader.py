@@ -7,7 +7,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Trader:
-    def __init__(self, product, feed, api, investment=decimal.Decimal('100'), recurring=decimal.Decimal('10')):
+    def __init__(self, product, feed, api, investment=decimal.Decimal('100'), recurring=decimal.Decimal('0')):
         self.product = product
         self.feed = feed
         self.api = api
@@ -16,6 +16,7 @@ class Trader:
         self.liquidity = self.investment
         self.buys = 0
         self.sells = 0
+        self.volume = decimal.Decimal('0')
         self.positions = []
 
     def initialize(self):
@@ -37,7 +38,8 @@ class Trader:
 
         if self.liquidity:
             position = prosperpy.Position(self.product, self.liquidity / self.feed.price, self.feed.price)
-            LOGGER.info('{} Buy (Price: {:.2f}) {:.8f}'.format(self, self.feed.price, position.amount))
+            self.volume += position.amount
+            LOGGER.info('{} Buying {:.8f} for {:.2f}'.format(self, position.amount, self.feed.price))
             self.liquidity = decimal.Decimal('0')
             self.buys += 1
             self.positions.append(position)
@@ -49,16 +51,19 @@ class Trader:
             profit -= profit * decimal.Decimal('0.025')
 
             if position.amount > 0 and profit > position.price * position.amount:
-                LOGGER.info('{} Sell (Price: {:.2f}) {:.8f}'.format(self, self.feed.price, position.amount))
+                LOGGER.info('{} Selling {:.8f} for {:.2f} bought at {:.2f}'.format(
+                    self, position.amount, self.feed.price, position.price))
                 self.liquidity += profit
                 self.sells += 1
+                self.volume += position.amount
                 position.amount = decimal.Decimal('0')
                 self.summary()
 
         self.clean_positions()
 
     def summary(self):
-        LOGGER.info('{} {:.2f}% ({},{})'.format(self, self.return_on_investment(), self.buys, self.sells))
+        LOGGER.info('{} {:.2f}% ({},{},{:.2f})'.format(
+            self, self.return_on_investment(), self.buys, self.sells, self.volume))
 
     def add(self, candle):
         raise NotImplementedError()

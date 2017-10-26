@@ -18,6 +18,7 @@ class GDAXFeed:
         self.connection = prosperpy.gdax.GDAXWebsocketConnection(self.product, self.granularity)
         self.connection.on_connection.append(self.load_candles)
         self.price = decimal.Decimal('0')
+        self.staged_prices = []
         self.candles = collections.deque()
         self.traders = []
 
@@ -53,6 +54,8 @@ class GDAXFeed:
         if self.candle.open.is_nan():
             self.candle.open = self.price
 
+        self.staged_prices.append(self.price)
+
     def is_candle_valid(self):
         """Make sure the current candle was populated with data.
 
@@ -61,7 +64,8 @@ class GDAXFeed:
         """
         return (self.candle.low != decimal.Decimal('+infinity')
                 and self.candle.high != decimal.Decimal('-infinity')
-                and not self.candle.open.is_nan())
+                and not self.candle.open.is_nan()
+                and self.staged_prices)
 
     def simple_moving_average(self, period):
         length = len(self.candles)
@@ -94,6 +98,8 @@ class GDAXFeed:
     async def trade(self):
         while True:
             if self.is_candle_valid():
+                self.candle.price = decimal.Decimal(sum(self.staged_prices) / len(self.staged_prices))
+                self.staged_prices = []
                 self.candle.close = self.price
                 self.add_candle()
 

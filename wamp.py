@@ -2,6 +2,7 @@ import sys
 import logging
 import argparse
 import decimal
+import collections
 
 import prosperpy
 
@@ -74,6 +75,37 @@ class Agent:
                 trader.trade(candle)
 
 
+def real_time(feed):
+    prosperpy.engine.create_task(feed())
+    prosperpy.engine.run_forever()
+    prosperpy.engine.close()
+    return
+
+
+def the_past(options, feed):
+    # factor = 365 * (3600 * 24) / (options.granularity * options.period)
+    factor = 10
+    # candles = prosperpy.gdax.api.get_candles(options.period * factor, options.granularity, product)
+    candles = get_candles(options.granularity, reverse=options.reverse)
+
+    feed.candles = collections.deque(iterable=candles[0:feed.period], maxlen=feed.period * factor)
+
+    for trader in feed.traders:
+        trader.initialize()
+
+    for candle in candles[feed.period:]:
+        price = decimal.Decimal(sum([candle.low, candle.high, candle.open, candle.close]) / 4)
+        candle.price = price
+        feed.add_candle(candle=candle)
+        feed.price = price
+        for trader in feed.traders:
+            trader.trade()
+
+    LOGGER.info('--------------------------------------------------------------------------------')
+    for trader in feed.traders:
+        trader.summary()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--granularity', type=int, dest='granularity', required=True)
@@ -89,32 +121,15 @@ def main():
         'XRIqlNO9bE49AO15Xb800mqa1qTDqUcHS8NjfYXbK6DO5sdWDHk46bKXEBrc5IFrvYZOqkUwJscA2NLEi471kA==',
         '92Ka6n64Tzya')
     api = prosperpy.gdax.api.GDAXAPI(auth)
-
-    #factor = 365 * (3600 * 24) / (options.granularity * options.period)
-    #factor = 10
-    #candles = prosperpy.gdax.api.get_candles(options.period * factor, options.granularity, product)
-    #candles = get_candles(options.granularity, reverse=options.reverse)
-    #[print(candle) for candle in candles]
-    #return
-
-    #feed = prosperpy.gdax.GDAXFeed(product, options.granularity, candles[0:options.period])
     feed = prosperpy.gdax.GDAXFeed(product, options.period, options.granularity)
     feed.traders.append(prosperpy.traders.ADXTrader(product, feed, api))
     feed.traders.append(prosperpy.traders.SMATrader(product, feed, api))
-    feed.traders.append(prosperpy.traders.HODLTrader(product, feed, api))
     feed.traders.append(prosperpy.traders.PercentageTrader(decimal.Decimal('0.8'), product, feed, api))
+    feed.traders.append(prosperpy.traders.ForestTrader(product, feed, api))
+    feed.traders.append(prosperpy.traders.HODLTrader(product, feed, api))
 
-    prosperpy.engine.create_task(feed())
-    prosperpy.engine.run_forever()
-    prosperpy.engine.close()
-    return
-
-    agent = Agent([feed], traders, candles[options.period:])
-    agent()
-
-    LOGGER.info('--------------------------------------------------------------------------------')
-    for trader in traders:
-        trader.summary()
+    #real_time(feed)
+    the_past(options, feed)
 
 
 if __name__ == '__main__':
