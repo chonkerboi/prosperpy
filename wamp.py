@@ -22,14 +22,22 @@ def get_candles(granularity, reverse=False):
             aux.append(item)
             if aux[-1][0] > timestamp + granularity:
                 timestamp = timestamp + granularity
-                data.append([aux[0][0], aux[0][1], aux[-1][2], min([i[3] for i in aux]), max([i[4] for i in aux])])
+                data.append([aux[0][0],
+                             aux[0][1],
+                             aux[-1][2],
+                             min([i[3] for i in aux]),
+                             max([i[4] for i in aux]),
+                             aux[0][5]])
                 aux = []
 
         if reverse:
             data = reversed(data)
 
         for index, item in enumerate(data):
-            candle = prosperpy.Candle(*list(map(decimal.Decimal, item[1:5])))
+            kwargs = dict(
+                timestamp=item[0], low=decimal.Decimal(item[1]), high=decimal.Decimal(item[2]),
+                open=decimal.Decimal(item[3]), close=decimal.Decimal(item[4]), volume=decimal.Decimal(item[5]))
+            candle = prosperpy.Candle(**kwargs)
 
             try:
                 candle.previous = candles[index - 1]
@@ -82,11 +90,11 @@ def real_time(feed):
     return
 
 
-def the_past(options, feed):
+def the_past(options, feed, product):
     # factor = 365 * (3600 * 24) / (options.granularity * options.period)
     factor = 10
-    # candles = prosperpy.gdax.api.get_candles(options.period * factor, options.granularity, product)
-    candles = get_candles(options.granularity, reverse=options.reverse)
+    candles = prosperpy.gdax.api.get_candles(options.period * factor, options.granularity, product)
+    #candles = get_candles(options.granularity, reverse=options.reverse)
 
     feed.candles = collections.deque(iterable=candles[0:feed.period], maxlen=feed.period * factor)
 
@@ -129,7 +137,7 @@ def main():
     feed.traders.append(prosperpy.traders.HODLTrader(product, feed, api))
 
     #real_time(feed)
-    the_past(options, feed)
+    the_past(options, feed, product)
 
 
 if __name__ == '__main__':

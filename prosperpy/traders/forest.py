@@ -5,6 +5,8 @@ import logging
 import sklearn.ensemble
 import numpy
 
+import prosperpy
+
 from .trader import Trader
 
 LOGGER = logging.getLogger(__name__)
@@ -16,7 +18,6 @@ class ForestTrader(Trader):
         self.errors = collections.deque()
         self.error_threshold = decimal.Decimal('0.01')
         self.predicted_price = decimal.Decimal('0')
-        self.lookforward = 10
         self.predictions = []
 
     @property
@@ -32,31 +33,39 @@ class ForestTrader(Trader):
 
     def add(self, candle):
         model = sklearn.ensemble.RandomForestRegressor()
-        diffs = numpy.diff([c.price for c in self.feed.candles]).tolist()
+        price_deltas = numpy.diff([item.price for item in self.feed.candles]).tolist()
         input_variables = []
         output_variables = []
 
         lookback = int(len(self.feed.candles) / 4)
-        for index in range(0, len(diffs) - lookback):
-            input_variables.append(diffs[index:index+lookback])
-            output_variables.append(diffs[index+lookback])
+        for index in range(0, len(price_deltas) - lookback):
+            input_variables.append(price_deltas[index:index+lookback])
+            output_variables.append(price_deltas[index+lookback])
 
         model.fit(input_variables, output_variables)
 
-        prices = [c.price for c in list(self.feed.candles)[-lookback - 1:]]
-        diffs = numpy.diff(prices).tolist()
-        for _ in range(0, self.lookforward):
-            prediction = model.predict([diffs])
-            self.predicted_price = candle.price + decimal.Decimal(str(prediction[0]))
-            prices = prices[1:len(prices)] + [self.predicted_price]
-            diffs = numpy.diff(prices).tolist()
+        self.predictions = []
+        prices = [item.price for item in list(self.feed.candles)[-lookback - 1:]]
+        price_deltas = numpy.diff(prices).tolist()
+        previous = candle
+        for _ in range(0, int(lookback / 4)):
+            delta = decimal.Decimal(str(model.predict([price_deltas])[0]))
+            prediction = prosperpy.Candle(timestamp=previous.timestamp+self.feed.granularity, price=candle.price+delta,
+                                          previous=previous)
+            self.predictions.append(prediction)
+            previous = self.prediction
+            prices = prices[1:len(prices)] + [self.prediction.price]
+            price_deltas = numpy.diff(prices).tolist()
+        LOGGER.info('%s predictions are %s', self, self.predictions)
 
     def trade(self):
         try:
-            price = list(self.feed.candles)[-self.lookforward].price
-            self.errors.append(abs((self.predicted_price - price) / price))
-            LOGGER.info('{} Error: {:.4f}%'.format(self, self.error*100))
-        except (decimal.InvalidOperation, decimal.DivisionByZero):
+            candle = self.predictions[0]
+            self.errors.append(abs((candle.price - candle.previous.price) / candle.previous.price))
+            accuracy = decimal.Decimal('100') - self.error * decimal.Decimal('100')
+            LOGGER.info('{} accuracy {:.4f}%'.format(self, accuracy))
+            LOGGER.info('%s knows about %s predictions', self, len(self.predictions))
+        except (IndexError, decimal.InvalidOperation, decimal.DivisionByZero):
             pass
 
         try:
@@ -66,7 +75,7 @@ class ForestTrader(Trader):
         except (ZeroDivisionError, decimal.InvalidOperation, decimal.DivisionByZero):
             return
 
-        if self.predicted_price - self.feed.price > 0:
+        if self.prediction.price - self.feed.price > 0:
             self.buy()
         else:
             self.sell()

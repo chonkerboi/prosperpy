@@ -53,7 +53,7 @@ def get_candles(period, granularity, product, dump=None):
     for item in data:
         if item[0] not in tmp.keys():
             tmp[item[0]] = item
-    data = sorted(tmp.values(), key=lambda item: item[0])
+    data = sorted(tmp.values(), key=lambda value: value[0])
 
     if dump is not None:
         with open(dump, 'w') as dump_file:
@@ -62,7 +62,10 @@ def get_candles(period, granularity, product, dump=None):
 
     candles = []
     for index, item in enumerate(data):
-        candle = prosperpy.Candle(*list(map(decimal.Decimal, item[1:5])))
+        kwargs = dict(
+            timestamp=item[0], low=decimal.Decimal(item[1]), high=decimal.Decimal(item[2]),
+            open=decimal.Decimal(item[3]), close=decimal.Decimal(item[4]), volume=decimal.Decimal(item[5]))
+        candle = prosperpy.Candle(**kwargs)
 
         try:
             candle.previous = candles[index - 1]

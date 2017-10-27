@@ -4,6 +4,7 @@ import collections
 import asyncio
 import logging
 import itertools
+import time
 
 import prosperpy
 
@@ -41,9 +42,14 @@ class GDAXFeed:
 
     def consume(self, message):
         try:
-            self.price = decimal.Decimal(json.loads(message)['price'])
+            data = json.loads(message)
+            self.price = decimal.Decimal(data['price'])
+            volume = decimal.Decimal(data['last_size'])
         except KeyError:
             return
+
+        if self.candle.timestamp is None:
+            self.candle.timestamp = time.time()
 
         if self.price > self.candle.high:
             self.candle.high = self.price
@@ -54,6 +60,7 @@ class GDAXFeed:
         if self.candle.open.is_nan():
             self.candle.open = self.price
 
+        self.candle.volume += volume
         self.staged_prices.append(self.price)
 
     def is_candle_valid(self):
@@ -62,10 +69,11 @@ class GDAXFeed:
         Returns:
             bool: True if the candle is valid and ready for trade, False otherwise.
         """
-        return (self.candle.low != decimal.Decimal('+infinity')
+        return (self.candle.timestamp is not None
+                and self.candle.low != decimal.Decimal('+infinity')
                 and self.candle.high != decimal.Decimal('-infinity')
                 and not self.candle.open.is_nan()
-                and self.staged_prices)
+                and self.staged_prices and self.candle.volume > 0)
 
     def simple_moving_average(self, period):
         length = len(self.candles)
