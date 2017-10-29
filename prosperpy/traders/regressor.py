@@ -3,8 +3,6 @@ import collections
 import logging
 import traceback
 
-import sklearn.ensemble
-import sklearn.linear_model
 import numpy
 
 import prosperpy
@@ -14,14 +12,18 @@ from .trader import Trader
 LOGGER = logging.getLogger(__name__)
 
 
-class ForestTrader(Trader):
-    def __init__(self, *args, **kwargs):
+class RegressorTrader(Trader):
+    def __init__(self, model, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.model = model
         self.errors = collections.deque()
         self.error_threshold = decimal.Decimal('0.4')
         self.n_predictions = 10
         self.history = collections.deque(maxlen=2)
-        self.model = None
+        self.regressor = None
+
+    def __str__(self):
+        return '{}<{} model={}>'.format(self.__class__.__name__, str(self.feed), self.model.__name__)
 
     @property
     def prediction(self):
@@ -43,7 +45,7 @@ class ForestTrader(Trader):
             LOGGER.debug(traceback.format_exc())
 
     def fit(self):
-        self.model = sklearn.ensemble.RandomForestRegressor()
+        self.regressor = self.model()
         price_deltas = numpy.diff([item.price for item in self.feed.candles]).tolist()
         input_variables = []
         output_variables = []
@@ -52,7 +54,7 @@ class ForestTrader(Trader):
             input_variables.append(price_deltas[index:index+self.feed.period])
             output_variables.append(price_deltas[index+self.feed.period])
 
-        self.model.fit(input_variables, output_variables)
+        self.regressor.fit(input_variables, output_variables)
 
     def predict(self, candle):
         predictions = []
@@ -60,7 +62,7 @@ class ForestTrader(Trader):
         price_deltas = numpy.diff(prices).tolist()
         previous = candle
         for _ in range(0, self.n_predictions):
-            delta = decimal.Decimal(str(self.model.predict([price_deltas])[0]))
+            delta = decimal.Decimal(str(self.regressor.predict([price_deltas])[0]))
             prediction = prosperpy.Candle(
                 timestamp=previous.timestamp+self.feed.granularity, price=candle.price+delta, previous=previous)
             predictions.append(prediction)
@@ -68,12 +70,9 @@ class ForestTrader(Trader):
             prices = prices[1:len(prices)] + [prediction.price]
             price_deltas = numpy.diff(prices).tolist()
         self.history.append(predictions)
-        LOGGER.info('%s knows about %s predictions', self, len(predictions))
         LOGGER.debug('%s predictions are %s', self, predictions)
 
     def trade(self):
-        self.summary()
-
         try:
             prediction = self.history[-2][0]
             if prediction.price >= self.feed.price:

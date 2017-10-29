@@ -4,6 +4,8 @@ import argparse
 import decimal
 import collections
 
+import sklearn.ensemble
+
 import prosperpy
 
 LOGGER = logging.getLogger(__name__)
@@ -134,7 +136,11 @@ def main():
     feed.traders.append(prosperpy.traders.ADXTrader(product, feed, api))
     feed.traders.append(prosperpy.traders.SMATrader(product, feed, api))
     feed.traders.append(prosperpy.traders.PercentageTrader(decimal.Decimal('0.8'), product, feed, api))
-    feed.traders.append(prosperpy.traders.ForestTrader(product, feed, api))
+    feed.traders.append(prosperpy.traders.RegressorTrader(sklearn.ensemble.RandomForestRegressor, product, feed, api))
+    feed.traders.append(prosperpy.traders.RegressorTrader(sklearn.ensemble.AdaBoostRegressor, product, feed, api))
+    feed.traders.append(prosperpy.traders.RegressorTrader(sklearn.ensemble.BaggingRegressor, product, feed, api))
+    feed.traders.append(prosperpy.traders.RegressorTrader(sklearn.ensemble.ExtraTreesRegressor, product, feed, api))
+    feed.traders.append(prosperpy.traders.RegressorTrader(sklearn.ensemble.GradientBoostingRegressor, product, feed, api))
     feed.traders.append(prosperpy.traders.HODLTrader(product, feed, api))
 
     #real_time(feed)
