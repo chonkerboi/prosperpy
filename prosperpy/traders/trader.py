@@ -39,7 +39,7 @@ class Trader:
         if self.liquidity:
             position = prosperpy.Position(self.product, self.liquidity / self.feed.price, self.feed.price)
             self.volume += position.amount
-            LOGGER.info('{} Buying {:.8f} for {:.2f}'.format(self, position.amount, self.feed.price))
+            LOGGER.info('{} Buying {:.8f} at {:.2f}'.format(self, position.amount, self.feed.price))
             self.liquidity = decimal.Decimal('0')
             self.buys += 1
             self.positions.append(position)
@@ -51,7 +51,7 @@ class Trader:
             profit -= profit * decimal.Decimal('0.025')
 
             if position.amount > 0 and profit > position.price * position.amount:
-                LOGGER.info('{} Selling {:.8f} for {:.2f} bought at {:.2f}'.format(
+                LOGGER.info('{} Selling {:.8f} at {:.2f} bought at {:.2f}'.format(
                     self, position.amount, self.feed.price, position.price))
                 self.liquidity += profit
                 self.sells += 1

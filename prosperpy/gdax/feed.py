@@ -118,8 +118,8 @@ class GDAXFeed:
 
     def load_candles(self):
         factor = 10
-        candles = prosperpy.gdax.api.get_candles(self.period * factor, self.granularity, self.product)
-        self.candles = collections.deque(iterable=candles[0:self.period], maxlen=self.period * factor)
+        candles = prosperpy.gdax.api.get_candles(self.period*factor, self.granularity, self.product)
+        self.candles = collections.deque(iterable=candles[0:self.period], maxlen=self.period*factor)
 
         for trader in self.traders:
             trader.initialize()

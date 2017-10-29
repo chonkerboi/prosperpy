@@ -1,4 +1,10 @@
 import decimal
+import enum
+
+
+class Trend(enum.Enum):
+    UP = True
+    DOWN = False
 
 
 class Candle(object):
@@ -13,6 +19,13 @@ class Candle(object):
         self.price = price
         self.volume = volume
         self.previous = previous
+
+    @property
+    def trend(self):
+        if self.price >= self.previous.price:
+            return Trend.UP
+        else:
+            return Trend.DOWN
 
     def __str__(self):  # pragma: no cover
         return '{}<{} {:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}>'.format(

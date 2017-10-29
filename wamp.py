@@ -93,10 +93,10 @@ def real_time(feed):
 def the_past(options, feed, product):
     # factor = 365 * (3600 * 24) / (options.granularity * options.period)
     factor = 10
-    candles = prosperpy.gdax.api.get_candles(options.period * factor, options.granularity, product)
-    #candles = get_candles(options.granularity, reverse=options.reverse)
+    #candles = prosperpy.gdax.api.get_candles(options.period * factor, options.granularity, product)
+    candles = get_candles(options.granularity, reverse=options.reverse)
 
-    feed.candles = collections.deque(iterable=candles[0:feed.period], maxlen=feed.period * factor)
+    feed.candles = collections.deque(iterable=candles[0:feed.period], maxlen=feed.period*factor)
 
     for trader in feed.traders:
         trader.initialize()
@@ -104,8 +104,9 @@ def the_past(options, feed, product):
     for candle in candles[feed.period:]:
         price = decimal.Decimal(sum([candle.low, candle.high, candle.open, candle.close]) / 4)
         candle.price = price
-        feed.add_candle(candle=candle)
         feed.price = price
+        feed.add_candle(candle=candle)
+
         for trader in feed.traders:
             trader.trade()
 
