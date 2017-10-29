@@ -3,8 +3,6 @@ import collections
 import logging
 import traceback
 
-import numpy
-
 import prosperpy
 
 from .trader import Trader
@@ -46,29 +44,27 @@ class RegressorTrader(Trader):
 
     def fit(self):
         self.regressor = self.model()
-        price_deltas = numpy.diff([item.price for item in self.feed.candles]).tolist()
+        prices = [item.price for item in self.feed.candles]
         input_variables = []
         output_variables = []
 
-        for index in range(0, len(price_deltas) - self.feed.period):
-            input_variables.append(price_deltas[index:index+self.feed.period])
-            output_variables.append(price_deltas[index+self.feed.period])
+        for index in range(0, len(self.feed.candles) - self.feed.period):
+            input_variables.append(prices[index:index+self.feed.period])
+            output_variables.append(prices[index+self.feed.period])
 
         self.regressor.fit(input_variables, output_variables)
 
     def predict(self, candle):
         predictions = []
-        prices = [item.price for item in list(self.feed.candles)[-self.feed.period - 1:]]
-        price_deltas = numpy.diff(prices).tolist()
+        prices = [item.price for item in list(self.feed.candles)[-self.feed.period:]]
         previous = candle
         for _ in range(0, self.n_predictions):
-            delta = decimal.Decimal(str(self.regressor.predict([price_deltas])[0]))
+            price = decimal.Decimal(str(self.regressor.predict([prices])[0]))
             prediction = prosperpy.Candle(
-                timestamp=previous.timestamp+self.feed.granularity, price=candle.price+delta, previous=previous)
+                timestamp=previous.timestamp+self.feed.granularity, price=price, previous=previous)
             predictions.append(prediction)
             previous = predictions[-1]
             prices = prices[1:len(prices)] + [prediction.price]
-            price_deltas = numpy.diff(prices).tolist()
         self.history.append(predictions)
         LOGGER.debug('%s predictions are %s', self, predictions)
 

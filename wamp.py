@@ -40,6 +40,7 @@ def get_candles(granularity, reverse=False):
                 timestamp=item[0], low=decimal.Decimal(item[1]), high=decimal.Decimal(item[2]),
                 open=decimal.Decimal(item[3]), close=decimal.Decimal(item[4]), volume=decimal.Decimal(item[5]))
             candle = prosperpy.Candle(**kwargs)
+            candle.price = decimal.Decimal(sum([candle.low, candle.high, candle.open, candle.close]) / 4)
 
             try:
                 candle.previous = candles[index - 1]
@@ -104,9 +105,7 @@ def the_past(options, feed, product):
         trader.initialize()
 
     for candle in candles[feed.period:]:
-        price = decimal.Decimal(sum([candle.low, candle.high, candle.open, candle.close]) / 4)
-        candle.price = price
-        feed.price = price
+        feed.price = candle.price
         feed.add_candle(candle=candle)
 
         for trader in feed.traders:
