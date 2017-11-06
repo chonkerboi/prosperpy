@@ -18,6 +18,7 @@ class Trader:
         self.sells = 0
         self.volume = decimal.Decimal('0')
         self.positions = []
+        self.fee = decimal.Decimal('0.025')
 
     def initialize(self):
         raise NotImplementedError()
@@ -48,7 +49,7 @@ class Trader:
     def sell(self):
         for position in self.positions:
             profit = position.amount * self.feed.price
-            profit -= profit * decimal.Decimal('0.025')
+            profit -= profit * self.fee
 
             if position.amount > 0 and profit > position.price * position.amount:
                 LOGGER.info('{} Selling {:.8f} at {:.2f} bought at {:.2f}'.format(

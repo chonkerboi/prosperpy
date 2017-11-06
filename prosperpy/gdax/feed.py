@@ -75,13 +75,16 @@ class GDAXFeed:
                 and not self.candle.open.is_nan()
                 and self.staged_prices and self.candle.volume > 0)
 
-    def simple_moving_average(self, period):
-        length = len(self.candles)
+    def simple_moving_average(self, period, candles=None):
+        if candles is None:
+            candles = self.candles
+
+        length = len(candles)
 
         if period > length:
             period = length
 
-        prices = [candle.close for candle in collections.deque(itertools.islice(self.candles, length - period, length))]
+        prices = [candle.close for candle in itertools.islice(candles, length - period, length)]
         return sum(prices) / len(prices)
 
     def add_candle(self, candle=None):
