@@ -12,10 +12,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class GDAXWebsocketConnection:
-    def __init__(self, product, timeout, url=URL):
-        self.url = url
-        self.product = product
+    def __init__(self, params, timeout, auth=None, url=URL):
+        self.params = params
+        if auth:
+            self.params.update(auth.make_headers('GET', '/users/self'))
+
         self.timeout = timeout
+        self.url = url
         self.on_connection = []
         self.connection = None
 
@@ -27,8 +30,7 @@ class GDAXWebsocketConnection:
             return None
 
     async def __aenter__(self):
-        data = dict(type='subscribe', channels=[dict(name='ticker', product_ids=[self.product])])
-        LOGGER.info('Creating connection to %s %s', self.url, data)
+        LOGGER.info('Creating connection to %s %s', self.url, self.params)
         await self.close()  # Close the previous connection.
         self.connection = websockets.connect(self.url, loop=prosperpy.engine)
 
@@ -37,7 +39,7 @@ class GDAXWebsocketConnection:
         except Exception as ex:
             LOGGER.error(ex)
         finally:
-            await self.send(json.dumps(data))
+            await self.send(json.dumps(self.params))
 
         for callback in self.on_connection:
             callback()  # Notify callback of new connection made.
@@ -80,3 +82,9 @@ class GDAXWebsocketConnection:
             except AttributeError:
                 await asyncio.sleep(self.timeout)
             await self.connect()  # Re-initialize the connection.
+
+
+class Ticker(GDAXWebsocketConnection):
+    def __init__(self, product, timeout, auth=None, url=URL):
+        params = dict(type='subscribe', channels=[dict(name='ticker', product_ids=[product])])
+        super(Ticker, self).__init__(params, timeout, auth=auth, url=url)

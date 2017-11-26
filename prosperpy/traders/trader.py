@@ -7,7 +7,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Trader:
-    def __init__(self, product, feed, api, investment=decimal.Decimal('100'), recurring=decimal.Decimal('0')):
+    def __init__(self, product, feed, api, investment=decimal.Decimal('100.0'), recurring=decimal.Decimal('0.0')):
         self.product = product
         self.feed = feed
         self.api = api
@@ -16,9 +16,10 @@ class Trader:
         self.liquidity = self.investment
         self.buys = 0
         self.sells = 0
-        self.volume = decimal.Decimal('0')
+        self.volume = decimal.Decimal('0.0')
         self.positions = []
         self.fee = decimal.Decimal('0.025')
+        self.callback = None
 
     def initialize(self):
         raise NotImplementedError()
@@ -41,10 +42,17 @@ class Trader:
             position = prosperpy.Position(self.product, self.liquidity / self.feed.price, self.feed.price)
             self.volume += position.amount
             LOGGER.info('{} Buying {:.8f} at {:.2f}'.format(self, position.amount, self.feed.price))
-            self.liquidity = decimal.Decimal('0')
+            self.liquidity = decimal.Decimal('0.0')
             self.buys += 1
             self.positions.append(position)
-            self.summary()
+            try:
+                self.callback('buy', self.feed.price)
+            except Exception:
+                pass
+        else:
+            LOGGER.info('Not enough liquidity to act on buy signal')
+
+        self.summary()
 
     def sell(self):
         for position in self.positions:
@@ -58,8 +66,14 @@ class Trader:
                 self.sells += 1
                 self.volume += position.amount
                 position.amount = decimal.Decimal('0')
-                self.summary()
+                try:
+                    self.callback('sell', self.feed.price)
+                except Exception:
+                    pass
+            else:
+                LOGGER.info("Not selling at a loss '%s < %s'", profit, position.price * position.amount)
 
+        self.summary()
         self.clean_positions()
 
     def summary(self):

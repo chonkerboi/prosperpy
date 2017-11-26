@@ -16,22 +16,22 @@ class GDAXFeed:
         self.product = product
         self.period = period
         self.granularity = granularity
-        self.connection = prosperpy.gdax.GDAXWebsocketConnection(self.product, self.granularity)
-        self.connection.on_connection.append(self.load_candles)
+        self.ticker = prosperpy.gdax.Ticker(self.product, self.granularity)
+        self.ticker.on_connection.append(self.load_candles)
         self.price = decimal.Decimal('0')
-        self.staged_prices = []
         self.candles = collections.deque()
         self.traders = []
 
     def __str__(self):
-        return '{}<{}>'.format(self.__class__.__name__, self.product)
+        return '{}<{}, period={}, granularity={}>'.format(
+            self.__class__.__name__, self.product, self.period, self.granularity)
 
     async def __aenter__(self):
-        await self.connection.connect()
+        await self.ticker.connect()
         return self
 
     async def __aexit__(self, *_):
-        await self.connection.close()
+        await self.ticker.close()
 
     async def __call__(self):
         return await self.run()
@@ -61,7 +61,6 @@ class GDAXFeed:
             self.candle.open = self.price
 
         self.candle.volume += volume
-        self.staged_prices.append(self.price)
 
     def is_candle_valid(self):
         """Make sure the current candle was populated with data.
@@ -73,19 +72,7 @@ class GDAXFeed:
                 and self.candle.low != decimal.Decimal('+infinity')
                 and self.candle.high != decimal.Decimal('-infinity')
                 and not self.candle.open.is_nan()
-                and self.staged_prices and self.candle.volume > 0)
-
-    def simple_moving_average(self, period, candles=None):
-        if candles is None:
-            candles = self.candles
-
-        length = len(candles)
-
-        if period > length:
-            period = length
-
-        prices = [candle.close for candle in itertools.islice(candles, length - period, length)]
-        return sum(prices) / len(prices)
+                and self.candle.volume > 0)
 
     def add_candle(self, candle=None):
         """Feed current candle to the traders and then add a new candle to the tracked candles.
@@ -109,8 +96,6 @@ class GDAXFeed:
     async def trade(self):
         while True:
             if self.is_candle_valid():
-                self.candle.price = decimal.Decimal(sum(self.staged_prices) / len(self.staged_prices))
-                self.staged_prices = []
                 self.candle.close = self.price
                 self.add_candle()
 
@@ -137,4 +122,4 @@ class GDAXFeed:
             prosperpy.engine.call_later(self.granularity, prosperpy.engine.create_task, self.trade())
 
             while True:
-                self.consume(await self.connection.recv())
+                self.consume(await self.ticker.recv())

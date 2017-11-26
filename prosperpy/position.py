@@ -4,6 +4,6 @@ class Position:
         self.price = price
         self.amount = amount
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         return '{}<{}, amount: {:.2f}, price: {:.2f}>'.format(
             self.__class__.__name__, self.product, self.amount, self.price)

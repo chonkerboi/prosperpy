@@ -16,20 +16,18 @@ class RegressorTrader(Trader):
         super().__init__(*args, **kwargs)
         self.model = model
         self.price_errors = collections.deque()
-        self.trend_errors = collections.deque()
-        self.trend_error_threshold = decimal.Decimal('0.4')
-        self.n_predictions = 10
+        self.error_threshold = decimal.Decimal('0.1')
+        #self.n_predictions = int(self.feed.period / 4)
+        self.n_predictions = 2
         self.history = collections.deque(maxlen=self.n_predictions)
         self.errors = []
         self.regressor = None
-        self.sma_periods = [5, 10]
+
+        self.coastline = None
+        self.e = collections.deque()
 
     def __str__(self):
-        return '{}<{} model={}>'.format(self.__class__.__name__, str(self.feed), self.model.__name__)
-
-    @property
-    def trend_error(self):
-        return sum(self.trend_errors) / len(self.trend_errors)
+        return '{}<{}, model={}>'.format(self.__class__.__name__, str(self.feed), self.model.__name__)
 
     @property
     def price_error(self):
@@ -37,18 +35,63 @@ class RegressorTrader(Trader):
 
     def initialize(self):
         self.errors = [collections.deque(maxlen=self.feed.candles.maxlen) for _ in range(self.history.maxlen)]
-        self.trend_errors = collections.deque(maxlen=self.feed.candles.maxlen)
         self.price_errors = collections.deque(maxlen=self.feed.candles.maxlen)
 
+        self.coastline = prosperpy.coastline.Coastline(self.feed.candles)
+        self.e = [collections.deque(maxlen=self.feed.candles.maxlen) for _ in range(self.history.maxlen)]
+
     def add(self, candle):
+        #self.coastline.add(candle)
+
         try:
-            self.fit()
-            self.predict(candle)
+            coastline = self.fit()
+            self.predict(coastline, candle)
         except Exception as ex:
             LOGGER.error('%s %s: %s', self, ex.__class__.__name__, ex)
             LOGGER.debug(traceback.format_exc())
 
     def fit(self):
+        self.regressor = self.model(n_estimators=10)
+
+        coastline = prosperpy.coastline.Coastline(list(self.feed.candles)[0:self.feed.period])
+        input_variables = []
+        output_variables = []
+
+        for candle in list(self.feed.candles)[self.feed.period:]:
+            try:
+                output_variables.append([candle.price, candle.volume])
+            except AttributeError:
+                continue
+
+            var = [coastline.price.ema5.value, coastline.price.ema10.value, coastline.price.ema_half.value,
+                   coastline.price.ema_full.value, coastline.volume.ema5.value, coastline.volume.ema10.value,
+                   coastline.volume.ema_half.value, coastline.volume.ema_full.value, coastline.dc.low5,
+                   coastline.dc.low10, coastline.dc.high5, coastline.dc.high10, coastline.price.all_time_min,
+                   coastline.price.all_time_max]
+            input_variables.append(var)
+            coastline.add(candle)
+
+        self.regressor.fit(input_variables, output_variables)
+        return coastline
+
+    def predict(self, coastline, candle):
+        candles = []
+        for _ in range(0, self.n_predictions):
+            coastline.add(candle)
+            data = [coastline.price.ema5.value, coastline.price.ema10.value, coastline.price.ema_half.value,
+                    coastline.price.ema_full.value, coastline.volume.ema5.value, coastline.volume.ema10.value,
+                    coastline.volume.ema_half.value, coastline.volume.ema_full.value, coastline.dc.low5,
+                    coastline.dc.low10, coastline.dc.high5, coastline.dc.high10, coastline.price.all_time_min,
+                    coastline.price.all_time_max]
+            price, volume = map(decimal.Decimal, self.regressor.predict([data])[0])
+            timestamp = candle.timestamp + self.feed.granularity
+            candle = prosperpy.Candle(timestamp=timestamp, price=price, volume=volume, previous=candle)
+            candles.append(candle)
+
+        self.history.append(candles)
+        LOGGER.debug('%s predictions are %s', self, candles)
+
+    def fit_old(self):
         self.regressor = self.model(n_estimators=10)
 
         candles = list(self.feed.candles)[-self.feed.period:]
@@ -57,15 +100,6 @@ class RegressorTrader(Trader):
 
         for index, candle in enumerate(candles):
             input_var = [candle.price, candle.volume]
-            '''
-            if len(self.feed.candles) > self.feed.period + max(self.sma_periods):
-                # We have enough candles to compute simple moving averages
-                for period in self.sma_periods:
-                    sma_candles = list(self.feed.candles)[-self.feed.period-period+index:-self.feed.period+index]
-                    data = [c.price for c in sma_candles]
-                    input_var.append(sum(data)/len(data))
-            '''
-
             input_variables.append(input_var)
 
             try:
@@ -75,19 +109,10 @@ class RegressorTrader(Trader):
 
         self.regressor.fit(input_variables, output_variables)
 
-    def predict(self, candle):
+    def predict_old(self, candle):
         candles = []
         for _ in range(0, self.n_predictions):
             data = [candle.price, candle.volume]
-            '''
-            if len(self.feed.candles) > self.feed.period + max(self.sma_periods):
-                for period in self.sma_periods:
-                    sma_data = [c.price for c in list(self.feed.candles)[-self.feed.period-period-1:]]
-                    sma_data.append(candle.price)
-                    sma = sum(sma_data) / len(sma_data)
-                    data.append(sma)
-            '''
-
             price, volume = map(decimal.Decimal, self.regressor.predict([data])[0])
             timestamp = candle.timestamp + self.feed.granularity
             candle = prosperpy.Candle(timestamp=timestamp, price=price, volume=volume, previous=candle)
@@ -98,7 +123,44 @@ class RegressorTrader(Trader):
 
     def compute_accuracy(self):
         if len(self.history) != self.history.maxlen:
-            return
+            LOGGER.debug('Not enough prediction history to compute accuracy')
+
+        try:
+            predictions = self.history[0]
+            for index, prediction in enumerate(predictions):
+                candle = self.feed.candles[-len(predictions)+index]
+                error = abs((prediction.price - candle.price) / candle.price)
+                self.errors[index].append(error)
+                accuracy = decimal.Decimal('100') - error * decimal.Decimal('100')
+                error_avg = sum(self.errors[index]) / len(self.errors[index])
+                accuracy_avg = decimal.Decimal('100') - error_avg * decimal.Decimal('100')
+                LOGGER.info('{} accuracy[{}] is {:.4f}% (avg: {:.4f}%)'.format(self, index, accuracy, accuracy_avg))
+
+                i = -len(predictions)+index+1
+                c = self.feed.candles[i]
+                print('-- {} {:.4f} {:.4f}'.format(i, c.previous.price, c.price))
+                real_delta = abs(c.price - c.previous.price)
+                if real_delta < decimal.Decimal('0.0001'):
+                    real_delta = decimal.Decimal('0.0001')
+                print('-- {}, {:.4f} {:.4f}'.format(-len(predictions)+index, candle.price, prediction.price))
+                prediction_delta = abs(prediction.price - candle.price)
+                print('-- {:.4f} {:.4f}'.format(real_delta, prediction_delta))
+                error = abs((prediction_delta - real_delta) / real_delta)
+                print('-- {:.4f}'.format(error))
+                self.e[index].append(error)
+                avg = sum(self.e[index]) / len(self.e[index])
+                print('-- {:.4f}'.format(avg))
+                break
+                #print('-- {:.4f}'.format(abs((prediction_delta - real_delta) / real_delta)))
+                #delta = abs((candle.price - candle.previous.price) / candle.previous.price)
+                #print('-- {:.4f} {:.4f}'.format(delta, error))
+                #print(error * decimal.Decimal('100.0') / delta)
+                #print(abs((error - delta) / delta))
+
+        except (IndexError, decimal.InvalidOperation, decimal.DivisionByZero, AttributeError) as ex:
+            LOGGER.error('%s %s: %s', self, ex.__class__.__name__, ex)
+            LOGGER.debug(traceback.format_exc())
+        return
 
         try:
             predictions = self.history[0]
@@ -112,21 +174,6 @@ class RegressorTrader(Trader):
                 LOGGER.debug('{} accuracy[{}] is {:.4f}% (avg: {:.4f}%)'.format(self, index, accuracy, accuracy_avg))
 
             prediction = self.history[-2][0]
-            if prediction.price >= self.feed.price:
-                trend = prosperpy.candle.Trend.UP
-            else:
-                trend = prosperpy.candle.Trend.DOWN
-
-            if prediction.trend == trend:
-                trend_error = decimal.Decimal('0')  # 0% error
-            else:
-                trend_error = decimal.Decimal('1')  # 100% error
-
-            self.trend_errors.append(trend_error)
-            accuracy = decimal.Decimal('100') - trend_error * decimal.Decimal('100')
-            accuracy_avg = decimal.Decimal('100') - self.trend_error * decimal.Decimal('100')
-            LOGGER.info('{} trend accuracy is {:.4f}% (avg: {:.4f}%)'.format(self, accuracy, accuracy_avg))
-
             price_error = abs((prediction.price - self.feed.price) / self.feed.price)
             self.price_errors.append(price_error)
             accuracy = decimal.Decimal('100') - price_error * decimal.Decimal('100')
@@ -139,9 +186,9 @@ class RegressorTrader(Trader):
 
     def check_accuracy(self):
         try:
-            if self.trend_error > self.trend_error_threshold:
-                LOGGER.warning("{} trend error is '{:.4f}' but trend error threshold is '{:.4f}'".format(
-                    self, self.trend_error, self.trend_error_threshold))
+            if self.price_error > self.error_threshold:
+                LOGGER.warning("{} error is '{:.4f}' but error threshold is '{:.4f}'".format(
+                    self, self.price_error, self.error_threshold))
                 return False
         except (ZeroDivisionError, decimal.InvalidOperation, decimal.DivisionByZero) as ex:
             LOGGER.error('%s %s: %s', self, ex.__class__.__name__, ex)
@@ -151,36 +198,27 @@ class RegressorTrader(Trader):
 
     def trade(self):
         self.compute_accuracy()
+        return
         if not self.check_accuracy():
             return
 
-        '''
-        prices = []
-        last_price = self.feed.candles[-1].price
-        trend = self.feed.candles[-1].trend
-
+        target = 5
+        trend = self.feed.candle.trend
+        prices = [self.history[-1][0].price]
         for prediction in self.history[-1]:
-            try:
-                delta = ((prediction.price * 100 / last_price) - 100) / 100
-                if delta > self.fee and delta > 0 and trend == prosperpy.candle.Trend.DOWN:
-                    prices.append(prediction.price)
-                    trend = prosperpy.candle.Trend.UP
-                elif delta < self.fee and delta < 0 and trend == prosperpy.candle.Trend.UP:
-                    prices.append(prediction.price)
-                    trend = prosperpy.candle.Trend.DOWN
-            except (decimal.DivisionByZero, IndexError):
+            if prediction.price > prices[-1] and trend == prosperpy.candle.Trend.DOWN:
                 prices.append(prediction.price)
-            last_price = prediction.price
+                trend = prosperpy.candle.Trend.UP
+            elif prediction.price < prices[-1] and trend == prosperpy.candle.Trend.UP:
+                prices.append(prediction.price)
+                trend = prosperpy.candle.Trend.DOWN
 
-        if len(prices) < 10:
+        if len(prices) < 4:
             prices = [prediction.price for prediction in self.history[-1]]
 
-        prices = prices[0:10]
-        '''
-        prices = [prediction.price for prediction in self.history[-1]]
+        prices = prices[0:target]
 
         best_traders = [DummyFutureTrader('B' * len(prices), self.fee) for _ in range(0, 10)]
-
         for actions in itertools.product('BSN', repeat=len(prices)):
             securities = sum([position.amount for position in self.positions])
             trader = FutureTrader(actions, self.fee, self.liquidity, securities)
@@ -212,22 +250,6 @@ class RegressorTrader(Trader):
         elif best_trader.strategy[0] == 'S':
             self.sell()
 
-        '''
-        try:
-            predictions = self.history[-1]
-            prediction = predictions[-1]
-            index = len(predictions) - 1
-            LOGGER.info('{} prediction[{}] {:.4f} (current {:.4f})'.format(
-                self, index, prediction.price, self.feed.price))
-            if prediction.price > self.feed.price:
-                self.buy()
-            else:
-                self.sell()
-        except IndexError as ex:
-            LOGGER.error('%s %s: %s', self, ex.__class__.__name__, ex)
-            LOGGER.debug(traceback.format_exc())
-        '''
-
 
 class FutureTrader:
     def __init__(self, strategy, fee, liquidity, security):
@@ -239,7 +261,7 @@ class FutureTrader:
         self.price = decimal.Decimal('0.0')
 
     def __str__(self):
-        return '{}<{}, {}, score={}>'.format(self.__class__.__name__, ''.join(self.strategy), self.total, self.score)
+        return '{}<{}, {:.4f}, score={}>'.format(self.__class__.__name__, ''.join(self.strategy), self.total, self.score)
 
     def buy(self):
         self.security += self.liquidity / self.price

@@ -10,7 +10,7 @@ class ADXTrader(Trader):
         self.above = None
 
     def initialize(self):
-        self.adx = prosperpy.wilder.AverageDirectionalIndex(list(self.feed.candles))
+        self.adx = prosperpy.indicators.AverageDirectionalIndex(list(self.feed.candles))
         self.above = True
 
     def add(self, candle):
