@@ -88,7 +88,9 @@ class DirectionalIndex:
 
     @property
     def value(self):
-        return 100 * (abs(self.plus.indicator - self.minus.indicator) / self.plus.indicator + self.minus.indicator)
+        di_diff = abs(self.plus.indicator - self.minus.indicator)
+        di_sum = self.plus.indicator + self.minus.indicator
+        return 100 * (di_diff / di_sum)
 
 
 class AverageDirectionalIndex(object):

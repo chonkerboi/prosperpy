@@ -5,21 +5,24 @@ import prosperpy
 
 
 def get_prices():
-    prices = ['22.27', '22.19', '22.08', '22.17', '22.18', '22.13', '22.23', '22.43', '22.24', '22.29', '22.15',
-              '22.39', '22.38', '22.61', '23.36', '24.05', '23.75', '23.83', '23.95', '23.63', '23.82', '23.87',
-              '23.65', '23.19', '23.10', '23.33', '22.68', '23.10', '22.40', '22.17']
+    prices = ['22.2734', '22.1940', '22.0847', '22.1741', '22.1840', '22.1344', '22.2337', '22.4323', '22.2436',
+              '22.2933', '22.1542', '22.3926', '22.3816', '22.6109', '23.3558', '24.0519', '23.7530', '23.8324',
+              '23.9516', '23.6338', '23.8225', '23.8722', '23.6537', '23.1870', '23.0976', '23.3260', '22.6805',
+              '23.0976', '22.4025', '22.1725']
     return [decimal.Decimal(price) for price in prices]
 
 
 class TestSimpleMovingAverage(unittest.TestCase):
     def test_simple_moving_average(self):
         prices = get_prices()
-        sma = prosperpy.overlays.SimpleMovingAverage(prices[0:10])
-        self.assertEqual(sma.period, 10)
-        self.assertEqual(sma.value, decimal.Decimal('22.221'))
-        data = ['22.209', '22.229', '22.259', '22.303', '22.421', '22.613', '22.765', '22.905', '23.076', '23.21',
-                '23.377', '23.525', '23.652', '23.71', '23.684', '23.612', '23.505', '23.432', '23.277', '23.131']
+        data = ['22.21283', '22.23269', '22.26238', '22.30606', '22.42324', '22.61499', '22.76692', '22.90693',
+                '23.07773', '23.21178', '23.37861', '23.52657', '23.65378', '23.71139', '23.68557', '23.61298',
+                '23.50573', '23.43225', '23.27734', '23.13121']
         data = [decimal.Decimal(item) for item in data]
+
+        sma = prosperpy.overlays.SimpleMovingAverage(prices[:10])
+        self.assertEqual(sma.period, 10)
+        self.assertEqual(sma.value, decimal.Decimal('22.22475'))
 
         for price, value in zip(prices[10:], data):
             self.assertEqual(sma(price), value)
@@ -28,17 +31,28 @@ class TestSimpleMovingAverage(unittest.TestCase):
 class TestExponentialMovingAverage(unittest.TestCase):
     def test_exponential_moving_average(self):
         prices = get_prices()
-        ema = prosperpy.overlays.ExponentialMovingAverage(prices[0:10])
-        self.assertEqual(ema.period, 10)
-        self.assertEqual(ema.value, decimal.Decimal('22.221'))
-        data = ['22.19827272727273', '22.25827272727273', '22.28100000000000', '22.35881818181818', '22.59172727272727',
-                '22.87427272727273', '22.94409090909091', '23.07318181818182', '23.23490909090909', '23.28636363636364',
-                '23.45754545454545', '23.58772727272727', '23.65163636363636', '23.61545454545455', '23.57781818181818',
-                '23.56072727272727', '23.35500000000000', '23.37163636363636', '23.11754545454545', '22.95627272727273']
+        data = ['22.21192272727273', '22.24477314049587', '22.26965075131480', '22.33169606925756', '22.51789678393800',
+                '22.79680645958564', '22.97065983057007', '23.12733986137551', '23.27720534112542', '23.34204073364807',
+                '23.42939696389388', '23.50990660682227', '23.53605086012731', '23.47258706737689', '23.40440760058109',
+                '23.39015167320271', '23.26112409625676', '23.23139244239189', '23.08068472559336', '22.91556023003093']
         data = [decimal.Decimal(item) for item in data]
+
+        ema = prosperpy.overlays.ExponentialMovingAverage(prices[:10])
+        self.assertEqual(ema.period, 10)
+        self.assertEqual(ema.value, decimal.Decimal('22.22475'))
 
         for price, value in zip(prices[10:], data):
             self.assertEqual(ema(price), value)
+
+
+class TestWeightedMovingAverage(unittest.TestCase):
+    def test_weighted_moving_average(self):
+        prices = ['90.91', '90.83', '90.28', '90.36', '90.90']
+        prices = [decimal.Decimal(price) for price in prices]
+        wma = prosperpy.overlays.WeightedMovingAverage(prices)
+        self.assertEqual(wma.period, 5)
+        self.assertEqual(wma.denominator, 15)
+        self.assertEqual(wma.value, decimal.Decimal('90.62333333333333'))
 
 
 if __name__ == '__main__':

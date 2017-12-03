@@ -9,6 +9,6 @@ class PerfectTrader(Trader):
         pass
 
     def trade(self):
-        profit = self.feed.candle.price - self.feed.candle.previous.price
+        profit = self.feed.candle.close - self.feed.candle.previous.close
         if profit:
             self.liquidity += profit

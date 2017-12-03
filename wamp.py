@@ -7,6 +7,7 @@ import collections
 import sklearn.ensemble
 
 import prosperpy
+import prosperpy.traders
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ def get_candles(granularity, reverse=False):
                 timestamp=item[0], low=decimal.Decimal(item[1]), high=decimal.Decimal(item[2]),
                 open=decimal.Decimal(item[3]), close=decimal.Decimal(item[4]), volume=decimal.Decimal(item[5]))
             candle = prosperpy.Candle(**kwargs)
-            candle.price = decimal.Decimal(sum([candle.low, candle.high, candle.open, candle.close]) / 4)
 
             try:
                 candle.previous = candles[index - 1]
@@ -93,12 +93,13 @@ def real_time(feed):
     return
 
 
-def plotme(prices, actions):
+def plotme(curves, actions):
     import matplotlib.pyplot
     import matplotlib.ticker
     fig = matplotlib.pyplot.figure()
     plot = fig.add_subplot(111)
-    plot.plot(prices)
+    for curve in curves:
+        plot.plot(curve)
     formatter = matplotlib.ticker.FormatStrFormatter('$%1.2f')
     plot.yaxis.set_major_formatter(formatter)
 
@@ -124,7 +125,9 @@ def the_past(period, granularity, feed, product, reverse):
     candles = get_candles(granularity, reverse=reverse)
 
     feed.candles = collections.deque(iterable=candles[1:feed.period+1], maxlen=feed.period*factor)
-    prices = [candle.price for candle in candles[1:feed.period+1]]
+    prices = [candle.close for candle in candles[1:feed.period+1]]
+    hma = [0] * len(candles[1:feed.period+1])
+    hrsi = [0] * len(candles[1:feed.period+1])
     actions = []
     counter = len(prices)
 
@@ -136,8 +139,20 @@ def the_past(period, granularity, feed, product, reverse):
         trader.callback = add_to_plot
 
     for candle in candles[feed.period+1:]:
-        prices.append(candle.price)
-        feed.price = candle.price
+        prices.append(candle.close)
+
+        for trader in feed.traders:
+            if isinstance(trader, prosperpy.traders.HMATrader):
+                if trader.hma.value is None:
+                    hma.append(0)
+                else:
+                    hma.append(trader.hma.value)
+                if trader.rsi is None or trader.rsi.value is None:
+                    hrsi.append(0)
+                else:
+                    hrsi.append(trader.rsi.value)
+
+        feed.price = candle.close
         feed.add_candle(candle=candle)
 
         for trader in feed.traders:
@@ -149,7 +164,7 @@ def the_past(period, granularity, feed, product, reverse):
     for trader in feed.traders:
         trader.summary()
 
-    plotme(prices, actions)
+    plotme([prices, hma, hrsi], actions)
 
 
 def main():
@@ -184,7 +199,8 @@ def main():
 def run(product, period, granularity, api, reverse):
     feed = prosperpy.gdax.GDAXFeed(product, period, granularity)
     #feed.traders.append(prosperpy.traders.ADXTrader(product, feed, api))
-    feed.traders.append(prosperpy.traders.RSITrader(product, feed, api))
+    #feed.traders.append(prosperpy.traders.RSITrader(product, feed, api))
+    feed.traders.append(prosperpy.traders.HMATrader(product, feed, api))
     #feed.traders.append(prosperpy.traders.SMATrader(product, feed, api))
     #feed.traders.append(prosperpy.traders.PercentageTrader(decimal.Decimal('0.8'), product, feed, api))
     #feed.traders.append(prosperpy.traders.RegressorTrader(sklearn.ensemble.RandomForestRegressor, product, feed, api))
