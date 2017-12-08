@@ -55,5 +55,29 @@ class TestWeightedMovingAverage(unittest.TestCase):
         self.assertEqual(wma.value, decimal.Decimal('90.62333333333333'))
 
 
+class TestHullMovingAverage(unittest.TestCase):
+    def test_hull_moving_average(self):
+        prices = [1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 18, 17, 16, 15,
+                  14, 15, 16, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+        prices = [decimal.Decimal(price) for price in prices]
+        data = ['4.501010101010096', '5.872727272727272', '7.268686868686868', '8.688888888888887', '10.06666666666666',
+                '11.35757575757576', '12.53939393939394', '13.63030303030304', '14.66060606060607', '15.66666666666667',
+                '16.66666666666667', '17.66666666666667', '18.66666666666666', '19.18181818181818', '19.00404040404040',
+                '18.16363636363636', '16.89090909090908', '15.41616161616162', '14.45454545454546', '14.31111111111112',
+                '14.47878787878787', '14.96767676767676', '15.74949494949494', '16.75757575757576', '17.87676767676767',
+                '19.09292929292929', '20.30909090909091', '21.47272727272726', '22.57575757575757', '23.63636363636365']
+        data = [decimal.Decimal(item) for item in data]
+
+        hma = prosperpy.overlays.HullMovingAverage(prices[:10])
+        self.assertEqual(hma.period, 3)
+        # The first 3 (period) values should be None
+        self.assertIsNone(hma.value)
+        self.assertIsNone(hma(prices[10]))
+        self.assertIsNone(hma(prices[11]))
+
+        for price, value in zip(prices[12:], data):
+            self.assertEqual(hma(price), value)
+
+
 if __name__ == '__main__':
     unittest.main()

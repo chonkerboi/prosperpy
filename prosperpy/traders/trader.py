@@ -18,7 +18,8 @@ class Trader:
         self.sells = 0
         self.volume = decimal.Decimal('0.0')
         self.positions = []
-        self.fee = decimal.Decimal('0.0')
+        self.fee = decimal.Decimal('0.0025')
+        #self.fee = decimal.Decimal('0.0')
         self.callback = None
 
     def initialize(self):
