@@ -25,12 +25,13 @@ def get_candles():
     candles = []
     for index, item in enumerate(data):
         low, high, close = map(decimal.Decimal, item)
-        candle = prosperpy.Candle(low=low, high=high, open=decimal.Decimal('0.00'), close=close)
+        candle = prosperpy.Candle(low=low, high=high, close=close)
 
         try:
             candle.previous = candles[index-1]
+            candle.open = candle.previous.close
         except IndexError:
-            pass
+            candle.open = candle.close
 
         candles.append(candle)
 

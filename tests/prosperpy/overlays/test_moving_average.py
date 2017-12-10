@@ -79,5 +79,24 @@ class TestHullMovingAverage(unittest.TestCase):
             self.assertEqual(hma(price), value)
 
 
+class TestVolumeWeightedMovingAverage(unittest.TestCase):
+    def test_volume_weighted_moving_average(self):
+        candles = [(6, 10), (5, 20), (4, 1), (3, 1), (2, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1),
+                   (8, 50), (9, 20), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1)]
+        candles = [prosperpy.Candle(close=decimal.Decimal(prc), volume=decimal.Decimal(vol)) for prc, vol in candles]
+        vwma = prosperpy.overlays.VolumeWeightedMovingAverage(candles[:6])
+        data = ['3.359047619047618', '2.392857142857144', '2.607142857142858', '3.130952380952382', '3.916666666666667',
+                '4.916666666666667', '7.030303030303032', '7.734234234234234', '8.274774774774776', '8.815315315315316',
+                '9.355855855855855', '9.896396396396397', '10.96666666666666', '12.91666666666667']
+        data = [decimal.Decimal(item) for item in data]
+
+        self.assertEqual(vwma.period, 6)
+        self.assertEqual(vwma.denominator, 21)
+        self.assertEqual(vwma.value, decimal.Decimal('3.833333333333333'))
+
+        for candle, value in zip(candles[6:], data):
+            self.assertEqual(vwma(candle), value)
+
+
 if __name__ == '__main__':
     unittest.main()

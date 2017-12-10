@@ -44,8 +44,11 @@ def get_candles(granularity, reverse=False):
 
             try:
                 candle.previous = candles[index - 1]
+                if candle.open.is_nan():
+                    candle.open = candle.previous.close
             except IndexError:
-                pass
+                if candle.open.is_nan():
+                    candle.open = candle.close
 
             candles.append(candle)
 
@@ -98,8 +101,8 @@ def plotme(curves, actions):
     import matplotlib.ticker
     fig = matplotlib.pyplot.figure()
     plot = fig.add_subplot(111)
-    for curve in curves:
-        plot.plot(curve)
+    for curve, color in curves:
+        plot.plot(curve, color=color)
     formatter = matplotlib.ticker.FormatStrFormatter('$%1.2f')
     plot.yaxis.set_major_formatter(formatter)
 
@@ -126,8 +129,12 @@ def the_past(period, granularity, feed, product, reverse):
 
     feed.candles = collections.deque(iterable=candles[1:feed.period+1], maxlen=feed.period*factor)
     prices = [candle.close for candle in candles[1:feed.period+1]]
-    hma = [0] * len(candles[1:feed.period+1])
+    hma1 = [0] * len(candles[1:feed.period+1])
+    hma2 = [0] * len(candles[1:feed.period+1])
     hrsi = [0] * len(candles[1:feed.period+1])
+    pivot = [0] * len(candles[1:feed.period+1])
+    support = [0] * len(candles[1:feed.period+1])
+    resistance = [0] * len(candles[1:feed.period+1])
     actions = []
     counter = len(prices)
 
@@ -143,14 +150,29 @@ def the_past(period, granularity, feed, product, reverse):
 
         for trader in feed.traders:
             if isinstance(trader, prosperpy.traders.HMATrader):
-                if trader.hma.value is None:
-                    hma.append(0)
+                if trader.hma1.value is None:
+                    hma1.append(0)
                 else:
-                    hma.append(trader.hma.value)
+                    hma1.append(trader.hma1.value)
+
+                if trader.hma2.value is None:
+                    hma2.append(0)
+                else:
+                    hma2.append(trader.hma2.value)
+
                 if trader.rsi is None or trader.rsi.value is None:
                     hrsi.append(0)
                 else:
                     hrsi.append(trader.rsi.value)
+
+                if trader.dpp is None:
+                    pivot.append(0)
+                    support.append(0)
+                    resistance.append(0)
+                else:
+                    pivot.append(trader.dpp.pivot_point)
+                    support.append(trader.dpp.support[0])
+                    resistance.append(trader.dpp.resistance[0])
 
         feed.price = candle.close
         feed.add_candle(candle=candle)
@@ -164,7 +186,7 @@ def the_past(period, granularity, feed, product, reverse):
     for trader in feed.traders:
         trader.summary()
 
-    plotme([prices, hma, hrsi], actions)
+    plotme([(prices, 'blue'), (hma1, 'orange'), (hma2, 'green'), (hrsi, 'red'), (pivot, 'black'), (support, 'cyan'), (resistance, 'pink')], actions)
 
 
 def main():

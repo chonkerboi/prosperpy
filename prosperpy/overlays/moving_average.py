@@ -46,6 +46,26 @@ class WeightedMovingAverage(SimpleMovingAverage):
         return sum([value * ((index + 1) / self.denominator) for index, value in enumerate(self.values)])
 
 
+class VolumeWeightedMovingAverage(WeightedMovingAverage):
+    def __init__(self, candles):
+        super().__init__(candles)
+        self.volume = self.sum_volumes()
+
+    def sum_volumes(self):
+        return sum([candle.volume for candle in self.values])
+
+    def add(self, value):
+        super().add(value)
+        self.volume = self.sum_volumes()
+
+    def weight(self, candle, index):
+        return (((index + 1) / self.denominator) + (candle.volume / self.volume)) / 2
+
+    @property
+    def value(self):
+        return sum([candle.close * self.weight(candle, index) for index, candle in enumerate(self.values)])
+
+
 class HullMovingAverage(SimpleMovingAverage):
     def __init__(self, values, moving_average_class=WeightedMovingAverage):
         super().__init__(values)
@@ -74,4 +94,4 @@ class HullMovingAverage(SimpleMovingAverage):
         except AttributeError:
             self.values.append(value)
             if len(self.values) == self.values.maxlen:
-                self.moving_average = self.moving_average_class(self.values)
+                self.moving_average = WeightedMovingAverage(self.values)
