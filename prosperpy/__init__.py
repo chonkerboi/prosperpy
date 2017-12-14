@@ -3,6 +3,7 @@ import asyncio
 from .version import __version__
 from . import error
 from .candle import Candle
+from .tick import Tick
 from . import candle
 from . import gdax
 from . import strategies

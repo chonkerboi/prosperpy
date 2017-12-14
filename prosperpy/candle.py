@@ -17,7 +17,8 @@ class Candle(object):
         return self.close - self.previous.close
 
     def __str__(self):  # pragma: no cover
-        return '{}<{} {:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}>'.format(
+        # Cannot str self.previous because of infinite recursion.
+        return '{}<timestamp: {}, low: {:.4f}, high: {:.4f}, open: {:.4f}, close: {:.4f}, volume: {:.4f}>'.format(
             self.__class__.__name__, self.timestamp, self.low, self.high, self.open, self.close, self.volume)
 
     def __repr__(self):  # pragma: no cover

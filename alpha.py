@@ -17,58 +17,60 @@ class Code:
         self.deltaS = [0.25/100.0, 0.5/100.0, 1.0/100.0, 1.5/100.0]
 
         for ccy in self.ccyList:
-            self.trading.append(self.FXrateTrading(ccy, self.deltaS))
+            self.trading.append(FXrateTrading(ccy, self.deltaS))
 
         price = self.PriceFeedData()
 
         for trader in self.trading:
             trader.runTradingAsymm(price)
 
-    class FXrateTrading:
-        def __init__(self, rate, deltas):
-            self.coastTraderLong = []
-            self.coastTraderShort = []
-            self.FXrate = rate
-            self.liquidity = None
-            self.currentTime = 1136073600000.0
-            self.oneDay = 24.0 * 60.0 * 60.0 * 1000.0
 
-            for delta in deltas:
-                self.coastTraderLong.append(CoastlineTrader(delta, delta, delta, delta, rate, 1))
-                self.coastTraderShort.append(CoastlineTrader(delta, delta, delta, delta, rate, -1))
+class FXrateTrading:
+    def __init__(self, rate, deltas):
+        self.coastTraderLong = []
+        self.coastTraderShort = []
+        self.FXrate = rate
+        self.liquidity = None
+        self.currentTime = 1136073600000.0
+        self.oneDay = 24.0 * 60.0 * 60.0 * 1000.0
 
-        def runTradingAsymm(self, price):
-            for long, short in zip(self.coastTraderLong, self.coastTraderShort):
-                long.runPriceAsymm(price, short.tP)
-                short.runPriceAsymm(price, long.tP)
+        for delta in deltas:
+            self.coastTraderLong.append(CoastlineTrader(delta, delta, delta, delta, 1))
+            self.coastTraderShort.append(CoastlineTrader(delta, delta, delta, delta, -1))
 
-            if price.elems.time >= self.currentTime + self.oneDay:
-                while self.currentTime <= price.elems.time:
-                    self.currentTime += self.oneDay
-                self.printDataAsymm(self.currentTime)
+    def runTradingAsymm(self, price):
+        for long, short in zip(self.coastTraderLong, self.coastTraderShort):
+            long.runPriceAsymm(price, short.tP)
+            short.runPriceAsymm(price, long.tP)
 
-        def printDataAsymm(self, time):
-            print('----------')
-            print(time)
+        if price.elems.time >= self.currentTime + self.oneDay:
+            while self.currentTime <= price.elems.time:
+                self.currentTime += self.oneDay
+            self.printDataAsymm(self.currentTime)
 
-            price = self.coastTraderLong[0].lastPrice
-            total_long = 0
-            total_short = 0
-            total_pos = 0
-            pnl = 0
-            pnl_perc = 0
+    def printDataAsymm(self, time):
+        print('----------')
+        print(time)
 
-            for long, short in zip(self.coastTraderLong, self.coastTraderShort):
-                total_long += long.tP
-                total_short += short.tP
-                total_pos += long.tP + short.tP
-                pnl += long.pnl + long.tempPnl + long.computePnlLastPrice() + short.pnl + short.tempPnl + short.computePnlLastPrice()
-                pnl_perc += long.pnlPerc + (long.tempPnl + long.computePnlLastPrice())/long.cashLimit*long.profitTarget + short.pnlPerc + (short.tempPnl + short.computePnlLastPrice())/short.cashLimit*short.profitTarget
+        price = self.coastTraderLong[0].lastPrice
+        total_long = 0
+        total_short = 0
+        total_pos = 0
+        pnl = 0
+        pnl_perc = 0
 
-            print(time, pnl, pnl_perc, total_pos, total_long, total_short, price)
+        for long, short in zip(self.coastTraderLong, self.coastTraderShort):
+            total_long += long.tP
+            total_short += short.tP
+            total_pos += long.tP + short.tP
+            pnl += long.pnl + long.tempPnl + long.computePnlLastPrice() + short.pnl + short.tempPnl + short.computePnlLastPrice()
+            pnl_perc += long.pnlPerc + (long.tempPnl + long.computePnlLastPrice())/long.cashLimit*long.profitTarget + short.pnlPerc + (short.tempPnl + short.computePnlLastPrice())/short.cashLimit*short.profitTarget
+
+        print(time, pnl, pnl_perc, total_pos, total_long, total_short, price)
+
 
 class CoastlineTrader:
-    def __init__(self, dOriginal, dUp, dDown, profitT, FxRate, lS):
+    def __init__(self, dOriginal, dUp, dDown, profitT, lS):
         self.tP = 0.0
         self.prices = []
         self.sizes = []
@@ -83,7 +85,6 @@ class CoastlineTrader:
         self.runnerG = []
         self.increaseLong = self.increaseShort = 0.0
         self.lastPrice = None
-        self.fxRate = FxRate
         self.liquidity = None
 
     def computePnl(self, price):
@@ -107,13 +108,13 @@ class CoastlineTrader:
         return True
 
     def runPriceAsymm(self, price, oppositeInv):
-        self.runner = self.Runner(self.deltaUp, self.deltaDown, price, self.fxRate, self.deltaUp, self.deltaDown)
+        self.runner = Runner(self.deltaUp, self.deltaDown, price, self.deltaUp, self.deltaDown)
         self.runnerG.append([
-            self.Runner(0.75*self.deltaUp, 1.50*self.deltaDown, price, self.fxRate, 0.75*self.deltaUp, 0.75*self.deltaUp),
-            self.Runner(0.50 * self.deltaUp, 2.00 * self.deltaDown, price, self.fxRate, 0.50 * self.deltaUp, 0.50 * self.deltaUp)])
+            Runner(0.75*self.deltaUp, 1.50*self.deltaDown, price, 0.75*self.deltaUp, 0.75*self.deltaUp),
+            Runner(0.50 * self.deltaUp, 2.00 * self.deltaDown, price, 0.50 * self.deltaUp, 0.50 * self.deltaUp)])
         self.runnerG.append([
-            self.Runner(1.50 * self.deltaUp, 0.75 * self.deltaDown, price, self.fxRate, 0.75 * self.deltaDown, 0.75 * self.deltaDown),
-            self.Runner(2.00 * self.deltaUp, 0.50 * self.deltaDown, price, self.fxRate, 0.50 * self.deltaDown, 0.50 * self.deltaDown)])
+            Runner(1.50 * self.deltaUp, 0.75 * self.deltaDown, price, 0.75 * self.deltaDown, 0.75 * self.deltaDown),
+            Runner(2.00 * self.deltaUp, 0.50 * self.deltaDown, price, 0.50 * self.deltaDown, 0.50 * self.deltaDown)])
         self.liquidity = LocalLiquidity(self.deltaOriginal, self.deltaUp, self.deltaDown, self.deltaOriginal*2.525729, price, 50.0)
 
         self.liquidity.computation(price)
@@ -160,7 +161,7 @@ class CoastlineTrader:
                     sizeToAdd = sign * size
 
                     if sizeToAdd < 0.0:
-                        print('How did this happen! increase position but negative size: ' + sizeToAdd)
+                        print('How did this happen! increase position but negative size: ' + str(sizeToAdd))
                         sizeToAdd = -sizeToAdd
 
                     self.tP += sizeToAdd
@@ -179,7 +180,7 @@ class CoastlineTrader:
                     sizeToAdd = sign * size * fraction * self.shrinkFlong
 
                     if sizeToAdd < 0.0:
-                        print('How did this happen! increase position but negative size: ' + sizeToAdd)
+                        print('How did this happen! increase position but negative size: ' + str(sizeToAdd))
                         sizeToAdd = -sizeToAdd
 
                     self.increaseLong += 1.0
@@ -249,7 +250,7 @@ class CoastlineTrader:
 
                     sizeToAdd = sign * size
                     if sizeToAdd > 0.0:
-                        print("How did this happen! decrease position but positive size: " + sizeToAdd)
+                        print("How did this happen! decrease position but positive size: " + str(sizeToAdd))
                         sizeToAdd = -sizeToAdd
 
                     self.tP += sizeToAdd
@@ -267,7 +268,7 @@ class CoastlineTrader:
                     sizeToAdd = sign * size * fraction * self.shrinkFshort
 
                     if sizeToAdd > 0.0:
-                        print("How did this happen! decrease position but negative size: " + sizeToAdd)
+                        print("How did this happen! decrease position but negative size: " + str(sizeToAdd))
                         sizeToAdd = -sizeToAdd
 
                     self.tP += sizeToAdd
@@ -280,7 +281,7 @@ class CoastlineTrader:
 
                     print("Cascade short")
 
-            elif event < 0.0 and self.tP < 0.0:
+            elif event < 0 and self.tP < 0.0:
                 if self.tP > 0.0:
                     pricE = price.elems.bid
                 else:
@@ -388,39 +389,68 @@ class LocalLiquidity:
             self.upLiq = 1.0 - scipy.stats.norm.cdf(math.sqrt(self.alpha) * (self.upSurp - self.H1) / math.sqrt(self.H2))
             self.downLiq = 1.0 - scipy.stats.norm.cdf(math.sqrt(self.alpha) * (self.downSurp - self.H1) / math.sqrt(self.H2))
 
-'''
-class Runner:
-    prevDC = 0.0
-    extreme = 0.0
-    deltaUp = 0.0
-    deltaDown = 0.0
-    type = 0
 
-    def __init__(self, threshUp=0.0, threshDown=0.0, price=None):
+class Runner:
+    def __init__(self, threshUp, threshDown, price, dStarUp, dStarDown):
+        self.prevExtreme = price.elems.mid
+        self.prevExtremeTime = price.elems.time
         self.prevDC = price.elems.mid
+        self.prevDCTime = price.elems.time
         self.extreme = price.elems.mid
-        self.type = -1
+        self.extremeTime = price.elems.time
         self.deltaUp = threshUp
         self.deltaDown = threshDown
+        self.deltaStarUp = dStarUp
+        self.deltaStarDown = dStarDown
+        self.osL = 0.0
+        self.type = -1
+        self.reference = price.elems.mid
 
     def run(self, price):
         if self.type == -1:
             if math.log(price.elems.bid/self.extreme) >= self.deltaUp:
+                self.prevExtreme = self.extreme
+                self.prevExtremeTime = self.extremeTime
                 self.type = 1
                 self.extreme = price.elems.ask
+                self.extremeTime = price.elems.time
                 self.prevDC = price.elems.ask
+                self.prevDCTime = price.elems.time
+                self.reference = price.elems.ask
                 return 1
+
             if price.elems.ask < self.extreme:
                 self.extreme = price.elems.ask
+                self.extremeTime = price.elems.time
+                self.osL = -math.log(self.extreme/self.prevDC)/self.deltaDown
+
+                if math.log(self.extreme/self.reference) <= -self.deltaStarUp:
+                    self.reference = self.extreme
+                    return -2
+
                 return 0
+
         elif self.type == 1:
             if math.log(price.elems.ask/self.extreme) <= -self.deltaDown:
+                self.prevExtreme = self.extreme
+                self.prevExtremeTime = self.extremeTime
                 self.type = -1
                 self.extreme = price.elems.bid
+                self.extremeTime = price.elems.time
                 self.prevDC = price.elems.bid
+                self.prevDCTime = price.elems.time
+                self.reference = price.elems.bid
                 return -1
+
             if price.elems.bid > self.extreme:
                 self.extreme = price.elems.bid
+                self.extremeTime = price.elems.time
+                self.osL = math.log(self.extreme/self.prevDC)/self.deltaUp
+
+                if math.log(self.extreme/self.reference) >= self.deltaStarDown:
+                    self.reference = self.extreme
+                    return 2
+
                 return 0
+
         return 0
-'''

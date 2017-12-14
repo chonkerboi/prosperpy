@@ -3,12 +3,51 @@ import decimal
 import collections
 import asyncio
 import logging
-import itertools
 import time
 
 import prosperpy
 
 LOGGER = logging.getLogger(__name__)
+
+
+class TickGDAXFeed:
+    def __init__(self, product, timeout=60):
+        self.product = product
+        self.ticker = prosperpy.gdax.Ticker(self.product, timeout)
+        self.price = decimal.Decimal('0')
+        self.traders = []
+
+    def __str__(self):
+        return '{}<{}>'.format(self.__class__.__name__, self.product)
+
+    async def __aenter__(self):
+        await self.ticker.connect()
+        return self
+
+    async def __aexit__(self, *_):
+        await self.ticker.close()
+
+    async def __call__(self):
+        return await self.run()
+
+    @prosperpy.error.fatal
+    async def run(self):
+        async with self:
+            while True:
+                self.consume(await self.ticker.recv())
+
+    def consume(self, message):
+        data = json.loads(message)
+
+        try:
+            tick = prosperpy.Tick(data['price'], data['best_bid'], data['best_ask'], data['last_size'])
+        except KeyError:
+            return
+
+        print(tick)
+
+        for trader in self.traders:
+            trader(tick)
 
 
 class GDAXFeed:
