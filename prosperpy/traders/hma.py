@@ -53,12 +53,20 @@ class HMATrader(Trader):
         if self.hma2.value is None or self.values[-1] is None or self.rsi is None or self.dpp is None:
             return
 
-        if self.hma2.value > self.values[-1] and self.feed.price < self.dpp.support[0]:
+        if self.hma2.value > self.values[-1] and self.trend < 0:
             self.buy()
             self.trend = self.hma2.value - self.values[-1]
-        elif self.hma2.value < self.values[-1] and self.feed.price > self.dpp.resistance[0]:
+        elif self.hma2.value < self.values[-1] and self.trend > 0:
             self.sell()
             self.trend = self.hma2.value - self.values[-1]
+
+        '''
+        if self.hma2.value > self.values[-1] and self.values[-1] < self.values[-2]:
+            self.buy()
+        elif self.hma2.value < self.values[-1] and self.values[-1] > self.values[-2]:
+            self.sell()
+        '''
+
         '''
         if self.hma1.value > self.values[-1] and self.trend < 0 and self.rsi.value < 20:
             self.buy()

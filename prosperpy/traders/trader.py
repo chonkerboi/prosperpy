@@ -40,7 +40,9 @@ class Trader:
         self.investment += self.recurring
 
         if self.liquidity:
-            position = prosperpy.Position(self.product, self.liquidity / self.feed.price, self.feed.price)
+            amount = self.liquidity / self.feed.price
+            amount -= amount * self.fee
+            position = prosperpy.Position(self.product, amount, self.feed.price)
             self.volume += position.amount
             LOGGER.info('{} Buying {:.8f} at {:.2f}'.format(self, position.amount, self.feed.price))
             self.liquidity = decimal.Decimal('0.0')

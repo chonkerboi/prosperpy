@@ -78,6 +78,6 @@ class GDAXAPI:
     def __init__(self, auth):
         self.session = requests.Session()
         self.session.auth = auth
-        import json
-        r = self.session.get('https://api-public.sandbox.gdax.com/accounts')
-        print(json.dumps(r.json(), indent=2, sort_keys=True))
+        #import json
+        #r = self.session.get('https://api-public.sandbox.gdax.com/accounts')
+        #print(json.dumps(r.json(), indent=2, sort_keys=True))

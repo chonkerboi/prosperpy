@@ -4,8 +4,6 @@ import argparse
 import decimal
 import collections
 
-import sklearn.ensemble
-
 import prosperpy
 import prosperpy.traders
 
