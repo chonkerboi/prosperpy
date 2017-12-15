@@ -6,6 +6,34 @@ import prosperpy
 LOGGER = logging.getLogger(__name__)
 
 
+class TickTrader:
+    def __init__(self, product, feed, api, investment=decimal.Decimal('100.0'), recurring=decimal.Decimal('0.0')):
+        self.product = product
+        self.feed = feed
+        self.api = api
+        self.investment = investment
+        self.recurring = recurring
+        self.capital = self.investment
+        self.buys = 0
+        self.sells = 0
+        self.volume = decimal.Decimal('0.0')
+        self.positions = []
+
+    def clean_positions(self):
+        self.positions = [position for position in self.positions if position.amount > 0]
+
+    def return_on_investment(self):
+        capital = self.capital + sum([self.feed.price * position.amount for position in self.positions])
+        return (capital / self.investment) * decimal.Decimal('100.0')
+
+    def __str__(self):
+        return '{}<{}, {:.2f}%, ({},{},{:.2f})>'.format(
+            self.__class__.__name__, str(self.feed), self.return_on_investment(), self.buys, self.sells, self.volume)
+
+    def __call__(self, tick):
+        raise NotImplementedError()
+
+
 class Trader:
     def __init__(self, product, feed, api, investment=decimal.Decimal('100.0'), recurring=decimal.Decimal('0.0')):
         self.product = product

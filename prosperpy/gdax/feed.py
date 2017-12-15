@@ -4,6 +4,7 @@ import collections
 import asyncio
 import logging
 import time
+import datetime
 
 import prosperpy
 
@@ -16,6 +17,7 @@ class TickGDAXFeed:
         self.ticker = prosperpy.gdax.Ticker(self.product, timeout)
         self.price = decimal.Decimal('0')
         self.traders = []
+        self.tick = None
 
     def __str__(self):
         return '{}<{}>'.format(self.__class__.__name__, self.product)
@@ -37,17 +39,28 @@ class TickGDAXFeed:
                 self.consume(await self.ticker.recv())
 
     def consume(self, message):
-        data = json.loads(message)
-
         try:
-            tick = prosperpy.Tick(data['price'], data['best_bid'], data['best_ask'], data['last_size'])
-        except KeyError:
+            data = json.loads(message)
+            price = data['price']
+            bid = data['best_bid']
+            ask = data['best_ask']
+            volume = data['last_size']
+
+            try:
+                timestamp = datetime.datetime.strptime(data['time'], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()
+            except ValueError:
+                timestamp = datetime.datetime.strptime(data['time'], '%Y-%m-%dT%H:%M:%S').timestamp()
+
+            self.tick = prosperpy.Tick(price, bid, ask, volume, timestamp)
+        except Exception as ex:
+            LOGGER.error("%s: %s (malformed tick: '%s')", ex.__class__.__name__, ex, message)
             return
 
-        print(tick)
+        self.price = self.tick.price
+        LOGGER.info(self.tick)
 
         for trader in self.traders:
-            trader(tick)
+            trader(self.tick)
 
 
 class GDAXFeed:
